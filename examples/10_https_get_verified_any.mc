@@ -10,10 +10,6 @@
 @utf8_console
 
 import pico_https;
-
-extern "msvcrt.dll" {
-    i32 atoi(u8* s);
-}
 private {
 i32 hex_nibble(u8 c) {
     if c >= '0' && c <= '9' { return cast(i32, c) - cast(i32, '0'); }

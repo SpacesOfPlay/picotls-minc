@@ -5,10 +5,6 @@
 
 import pico_https;
 
-extern "msvcrt.dll" {
-    i32 atoi(u8* s);
-}
-
 struct HttpsThreadArg {
     u8* host;
     u16 port;

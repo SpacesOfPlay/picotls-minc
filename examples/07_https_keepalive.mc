@@ -7,10 +7,6 @@
 
 import pico_https;
 
-extern "msvcrt.dll" {
-    i32 atoi(u8* s);
-}
-
 i32 main() {
     u8* host = getenv(cast(u8*, "TLS_HOST"));
     u8* sni = getenv(cast(u8*, "TLS_SNI"));

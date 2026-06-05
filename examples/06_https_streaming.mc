@@ -5,10 +5,6 @@
 
 import pico_https;
 
-extern "msvcrt.dll" {
-    i32 atoi(u8* s);
-}
-
 struct StreamCtx {
     i32 record_count;
     i32 total_bytes;

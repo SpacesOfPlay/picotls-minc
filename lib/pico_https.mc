@@ -3,8 +3,14 @@ import picotls;
 
 // pico_https — HTTPS client + minimal server over picotls.
 
-extern "msvcrt.dll" {
-    u8* getenv(u8* name);
+when os(windows) {
+    extern "msvcrt.dll" { u8* getenv(u8* name); }
+}
+when os(linux) {
+    extern "libc.so.6" { u8* getenv(u8* name); }
+}
+when os(macos) || os(ios) {
+    extern "libSystem.B.dylib" { u8* getenv(u8* name); }
 }
 
 // Parse a dotted-quad IPv4 literal. Returns 0 on failure.
@@ -74,6 +80,23 @@ when os(linux) {
         void* ai_next;
     }
 }
+when os(macos) || os(ios) {
+    extern "libSystem.B.dylib" {
+        i32 getaddrinfo(u8* node, u8* service, void* hints, void** res);
+        void freeaddrinfo(void* res);
+    }
+    struct _NetAddrInfoM {
+        i32 ai_flags;
+        i32 ai_family;
+        i32 ai_socktype;
+        i32 ai_protocol;
+        u32 ai_addrlen;
+        u32 _pad;
+        u8* ai_canonname;
+        void* ai_addr;
+        void* ai_next;
+    }
+}
 
 // Resolve `host` to an IPv4 address. Accepts literals and hostnames.
 // Returns 0 on failure.
@@ -119,6 +142,28 @@ u32 pico_resolve_ipv4(u8* host) {
                 break;
             }
             cur = cast(_NetAddrInfoL*, cur.ai_next);
+        }
+        freeaddrinfo(res);
+        return ip;
+    }
+    when os(macos) || os(ios) {
+        _NetAddrInfoM hints = _NetAddrInfoM{};
+        hints.ai_family = cast(i32, NET_AF_INET);
+        hints.ai_socktype = NET_SOCK_STREAM;
+        void* res = null;
+        if getaddrinfo(host, null, &hints, &res) != 0 { return cast(u32, 0); }
+        u32 ip = 0;
+        _NetAddrInfoM* cur = cast(_NetAddrInfoM*, res);
+        while cur != null {
+            if cur.ai_family == cast(i32, NET_AF_INET) && cur.ai_addr != null {
+                u8* ab = cast(u8*, cur.ai_addr);
+                ip = cast(u32, ab[4])
+                   | (cast(u32, ab[5]) << 8)
+                   | (cast(u32, ab[6]) << 16)
+                   | (cast(u32, ab[7]) << 24);
+                break;
+            }
+            cur = cast(_NetAddrInfoM*, cur.ai_next);
         }
         freeaddrinfo(res);
         return ip;
