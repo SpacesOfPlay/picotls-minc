@@ -14,6 +14,29 @@
 
 $ErrorActionPreference = 'Stop'
 
+# Force TLS 1.2 — Windows PowerShell defaults to SSL3/TLS 1.0
+# which GitHub's CDN rejects, causing "An existing connection
+# was forcibly closed by the remote host" on the first call.
+[Net.ServicePointManager]::SecurityProtocol = `
+    [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+
+# Retry transient connection failures. GitHub's CDN occasionally
+# resets the first TLS handshake; a single retry almost always
+# succeeds because .NET caches the session state.
+function Invoke-WebRequestWithRetry {
+    param([string]$Uri, [string]$OutFile, [int]$Attempts = 4)
+    for ($i = 1; $i -le $Attempts; $i++) {
+        try {
+            Invoke-WebRequest -UseBasicParsing -Uri $Uri -OutFile $OutFile
+            return
+        } catch {
+            if ($i -eq $Attempts) { throw }
+            Write-Host "  download failed (attempt $i/$Attempts): $($_.Exception.Message)"
+            Start-Sleep -Milliseconds (300 * $i)
+        }
+    }
+}
+
 $MincVersion   = '0.9.6'
 $MincSha256Win = 'e2f110e034309c7ee83eb4e3817a582cb812f457d48f159da4714f4f14dadc69'
 
@@ -35,7 +58,7 @@ Write-Host "  https://github.com/SpacesOfPlay/minc-dev/"
 Write-Host "It is NOT covered by this repo's license. See LICENSE.md."
 Write-Host ""
 Write-Host "Downloading minc v$MincVersion from $zipUrl"
-Invoke-WebRequest -UseBasicParsing -Uri $zipUrl -OutFile $zipPath
+Invoke-WebRequestWithRetry -Uri $zipUrl -OutFile $zipPath
 
 $actualSha = (Get-FileHash $zipPath -Algorithm SHA256).Hash.ToLower()
 if ($MincSha256Win -eq '<unverified-set-on-first-publish>') {
