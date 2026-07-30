@@ -7,15 +7,13 @@ the union of those terms. Full texts below.
 
 > **The minc compiler is NOT covered by the licenses below.** This
 > repo ships only minc-language source. Building it requires the
-> `minc` compiler from
-> <https://github.com/SpacesOfPlay/minc-dev/releases>, which is
-> closed-source proprietary software. The optional helper
-> `tools/get_minc.ps1` / `tools/get_minc.sh` downloads that binary
-> on demand into `tools/minc/` (gitignored). The terms governing
-> your use of `minc.exe` / `minc` are stated in the `LICENSE.md`
-> shipped inside that minc release (`tools/minc/LICENSE.md` after
-> running the fetcher). This repo takes no position and grants no
-> rights to the minc compiler binary.
+> `minc` compiler from <https://minc.dev>, which is
+> closed-source proprietary software. Install it from
+> <https://minc.dev> (see `install_minc.md`). The terms governing your
+> use of `minc.exe` / `minc` are stated in the LICENSE shipped with
+> your minc install.
+> This repo takes no position and grants no rights to the minc
+> compiler binary.
 
 ---
 

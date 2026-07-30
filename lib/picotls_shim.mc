@@ -14,12 +14,14 @@ i32 gettimeofday(timeval* tv, void* tz) {
     return 0;
 }
 
+// Aligned allocation (_aligned_malloc / _aligned_free / posix_memalign)
+// is provided by cstdlib_shim, backed by the program allocator.
+
 when os(windows) {
     extern "msvcrt.dll" {
-        void* memmove(void* dst, void* src, u64 n);
         i32 fprintf(void* stream, u8* fmt, ...);
-        @must_use void* _aligned_malloc(u64 size, u64 align);
-        void _aligned_free(void* p);
+    }
+    extern "ucrtbase.dll" {
+        void* memmove(void* dst, void* src, u64 n);
     }
 }
-

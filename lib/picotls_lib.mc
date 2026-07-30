@@ -272,6 +272,12 @@ enum __enum_HANDSHAKE_MODE_FULL {
     HANDSHAKE_MODE_PSK_DHE = 2,
 }
 
+/* __builtin_types_compatible_p yields incorrect results when older versions of GCC is used; see #303.
+ * Clang with Xcode 9.4 or prior is known to not work correctly when a pointer is const-qualified; see
+ * https://github.com/h2o/quicly/pull/306#issuecomment-626037269. Older versions of clang upstream works fine, but we do not need
+ * best coverage. This macro is for preventing misuse going into the master branch, having it work one of the compilers supported in
+ * our CI is enough.
+ */
 /* versions */
 /* cipher-suites */
 /* TLS/1.2 cipher-suites that we support (for compatibility, OpenSSL names are used) */
@@ -998,6 +1004,7 @@ struct st_ptls_raw_extension_t {
     ptls_iovec_t data;
 }
 
+/* suppress warning C4201: nonstandard extension used: nameless struct/union */
 struct st_ptls_handshake_properties_t {
     unsafe_union {
         struct {
@@ -1258,7 +1265,7 @@ struct st_ptls_server_hello_t {
     };
 }
 
-struct __anon_struct_43 {
+struct __anon_picotls_struct_43 {
     ptls_hash_algorithm_t* algo;
     ptls_hash_context_t* ctx;
     ptls_hash_context_t* ctx_outer;
@@ -1268,7 +1275,7 @@ struct st_ptls_key_schedule_t {
     u32 generation;
     u8[64] secret;
     u64 num_hashes;
-    __anon_struct_43[1] hashes;
+    __anon_picotls_struct_43[1] hashes;
 }
 
 struct st_ptls_extension_decoder_t {
@@ -1280,24 +1287,24 @@ struct st_ptls_extension_bitmap_t {
     u64 bits;
 }
 
-struct __anon_struct_44 {
+struct __anon_picotls_struct_44 {
     ptls_iovec_t secret;
     ptls_iovec_t identity;
     u8* label;
 }
 
-struct __anon_struct_45 {
+struct __anon_picotls_struct_45 {
     ptls_key_exchange_algorithm_t* algorithm;
     ptls_iovec_t peer_key;
 }
 
-struct __anon_struct_46 {
+struct __anon_picotls_struct_46 {
     u8* encoded_ch_inner;
     u8* ch_outer_aad;
     ptls_buffer_t ch_inner;
 }
 
-struct __anon_struct_47 {
+struct __anon_picotls_struct_47 {
     void* key;
     void* iv;
 }
@@ -1309,7 +1316,7 @@ struct st_picotls_hmac_context_t {
     u8[1] key;
 }
 
-struct __anon_struct_48 {
+struct __anon_picotls_struct_48 {
     u8[32] key;
     u8[32] iv;
 }
@@ -1801,8 +1808,6 @@ struct cf_poly1305 {
     u64 npartial;
 }
 
-extern { void* _aligned_malloc(u64 size, u64 alignment); }
-extern { void _aligned_free(void* ptr); }
 /*
  * Copyright (c) 2016 DeNA Co., Ltd., Kazuho Oku
  *
@@ -1855,15 +1860,6 @@ when os(macos) || os(ios) {
  */
 when os(windows) {
 }
-/* __builtin_types_compatible_p yields incorrect results when older versions of GCC is used; see #303.
- * Clang with Xcode 9.4 or prior is known to not work correctly when a pointer is const-qualified; see
- * https://github.com/h2o/quicly/pull/306#issuecomment-626037269. Older versions of clang upstream works fine, but we do not need
- * best coverage. This macro is for preventing misuse going into the master branch, having it work one of the compilers supported in
- * our CI is enough.
- */
-when os(windows) {
-} else {
-}
 /**
  * optional arguments to client-driven handshake
  */
@@ -1896,8 +1892,6 @@ u8* ptls_log_getsni_cb_ptls(void* _arg) {
         return ptls_get_server_name(arg);
     }
 }
-}
-private {
 ptls_log_getsni_t ptls_log_getsni_ptls(ptls_t* arg) {
     return ptls_log_getsni_t{ptls_log_getsni_cb_ptls, arg};
 }
@@ -1916,7 +1910,7 @@ ptls_t* ptls_new(ptls_context_t* ctx, i32 is_server) {
     return is_server != 0 ? ptls_server_new(ctx) : ptls_client_new(ctx);
 }
 ptls_iovec_t ptls_iovec_init(void* p, u64 len) {
-    ptls_iovec_t r;
+    noinit ptls_iovec_t r;
     r.base = cast(u8*, p);
     r.len = len;
     return r;
@@ -2028,8 +2022,6 @@ i32 is_supported_version(u16 v) {
     }
     return 0;
 }
-}
-private {
 i32 extension_bitmap_testandset(st_ptls_extension_bitmap_t* bitmap, i32 hstype, u16 extid) {
     u64 allowed_hs_bits;
     u64 ext_bitmap_mask = 1;
@@ -2290,38 +2282,26 @@ i32 extension_bitmap_testandset(st_ptls_extension_bitmap_t* bitmap, i32 hstype, 
     }
     return 1;
 }
-}
-private {
 u16 ntoh16(u8* src) {
     return cast(u16, cast(u16, src[0]) << 8 | src[1]);
 }
-}
-private {
 u32 ntoh24(u8* src) {
     return cast(u32, src[0]) << 16 | cast(u32, src[1]) << 8 | src[2];
 }
-}
-private {
 u32 ntoh32(u8* src) {
     return cast(u32, src[0]) << 24 | cast(u32, src[1]) << 16 | cast(u32, src[2]) << 8 | src[3];
 }
-}
-private {
 u64 ntoh64(u8* src) {
     return cast(u64, src[0]) << 56 | cast(u64, src[1]) << 48 | cast(u64, src[2]) << 40 | cast(u64, src[3]) << 32 | cast(u64, src[4]) << 24 | cast(u64, src[5]) << 16 | cast(u64, src[6]) << 8 | src[7];
 }
-}
-private {
 void encode64(u8* dst, u64 v) {
     for u64 i = 0; i < 8; ++i {
         dst[i] = cast(u8, v >> 56 - 8 * i);
     }
 }
-}
-private {
 u8* duplicate_as_str(void* src, u64 len) {
     u8* dst;
-    dst = malloc(len + 1);
+    dst = alloc(cast(i64, len + 1));
     if dst == null {
         return null;
     }
@@ -2372,7 +2352,7 @@ i32 ptls_buffer_reserve_aligned(ptls_buffer_t* buf, u64 delta, u8 align_bits) {
                 }
             }
         } else {
-            newp = malloc(new_capacity);
+            newp = alloc(cast(i64, new_capacity));
             if newp == null {
                 return 512 + 1;
             }
@@ -2400,7 +2380,7 @@ i32 ptls_buffer__do_pushv(ptls_buffer_t* buf, void* src, u64 len) {
     return 0;
 }
 i32 ptls_buffer__adjust_quic_blocksize(ptls_buffer_t* buf, u64 body_size) {
-    u8[8] sizebuf;
+    noinit u8[8] sizebuf;
     var sizelen = cast(u64, ptls_encode_quicint(sizebuf, body_size) - sizebuf);
     if sizelen != 1 {
         i32 ret;
@@ -2415,8 +2395,9 @@ i32 ptls_buffer__adjust_quic_blocksize(ptls_buffer_t* buf, u64 body_size) {
     return 0;
 }
 i32 ptls_buffer__adjust_asn1_blocksize(ptls_buffer_t* buf, u64 body_size) {
-    fprintf(stderr, "unimplemented\n");
+    fprintf(c_stderr, "unimplemented\n");
     abort();
+    return 0;  // unreachable: abort() does not return
 }
 i32 ptls_buffer_push_asn1_ubigint(ptls_buffer_t* buf, void* bignum, u64 size) {
     u8* p = bignum;
@@ -2502,19 +2483,15 @@ void build_aad(u8* aad, u64 reclen) {
     aad[3] = cast(u8, reclen >> 8);
     aad[4] = cast(u8, reclen);
 }
-}
-private {
 u64 aead_encrypt(st_ptls_traffic_protection_t* ctx, void* output, void* input, u64 inlen, u8 content_type) {
     ptls_iovec_t[2] invec = {ptls_iovec_init(input, inlen), ptls_iovec_init(&content_type, 1)};
-    u8[5] aad;
+    noinit u8[5] aad;
     build_aad(aad, inlen + 1 + ctx.aead.algo.tag_size);
     ptls_aead_encrypt_v(ctx.aead, output, invec, cast(u64, 1 * sizeof(invec) / sizeof(invec[0])), ctx.seq++, aad, cast(u64, sizeof(aad)));
     return inlen + 1 + ctx.aead.algo.tag_size;
 }
-}
-private {
 i32 aead_decrypt(st_ptls_traffic_protection_t* ctx, void* output, u64* outlen, void* input, u64 inlen) {
-    u8[5] aad;
+    noinit u8[5] aad;
     build_aad(aad, inlen);
     *outlen = ptls_aead_decrypt(ctx.aead, output, input, inlen, ctx.seq, aad, cast(u64, sizeof(aad)));
     if *outlen == SIZE_MAX {
@@ -2523,8 +2500,6 @@ i32 aead_decrypt(st_ptls_traffic_protection_t* ctx, void* output, u64* outlen, v
     ++ctx.seq;
     return 0;
 }
-}
-private {
 void build_tls12_aad(u8* aad, u8 type, u64 seq, u16 length) {
     for u64 i = 0; i < 8; ++i {
         aad[i] = cast(u8, seq >> 56 - i * 8);
@@ -2535,8 +2510,6 @@ void build_tls12_aad(u8* aad, u8 type, u64 seq, u16 length) {
     aad[11] = cast(u8, cast(i32, length) >> 8);
     aad[12] = cast(u8, length);
 }
-}
-private {
 i32 buffer_push_encrypted_records(ptls_buffer_t* buf, u8 type, u8* src, u64 len, st_ptls_traffic_protection_t* enc) {
     i32 ret = 0;
     while len != 0 {
@@ -2580,7 +2553,7 @@ i32 buffer_push_encrypted_records(ptls_buffer_t* buf, u8 type, u8* src, u64 len,
                             } else {
                                 nonce = enc.seq;
                             }
-                            u8[13] aad;
+                            noinit u8[13] aad;
                             build_tls12_aad(aad, type, enc.seq, cast(u16, chunk_size));
                             buf.off += ptls_aead_encrypt(enc.aead, buf.base + buf.off, src, chunk_size, nonce, aad, cast(u64, sizeof(aad)));
                             ++enc.seq;
@@ -2662,8 +2635,6 @@ i32 buffer_push_encrypted_records(ptls_buffer_t* buf, u8 type, u8* src, u64 len,
     }
     return ret;
 }
-}
-private {
 i32 buffer_encrypt_record(ptls_buffer_t* buf, u64 rec_start, st_ptls_traffic_protection_t* enc) {
     u64 bodylen = 0;
     u8* tmpbuf = null;
@@ -2684,7 +2655,6 @@ i32 buffer_encrypt_record(ptls_buffer_t* buf, u64 rec_start, st_ptls_traffic_pro
         ret = ptls_buffer_reserve_aligned(buf, overhead, enc.aead.algo.align_bits);
         if ret != 0 {
             _keep = true;
-            _keep = true;
             return ret;
         }
         u64 encrypted_len = aead_encrypt(enc, buf.base + rec_start + 5, buf.base + rec_start + 5, bodylen, type);
@@ -2696,7 +2666,7 @@ i32 buffer_encrypt_record(ptls_buffer_t* buf, u64 rec_start, st_ptls_traffic_pro
         _keep = true;
         return 0;
     }
-    tmpbuf = malloc(bodylen);
+    tmpbuf = alloc(cast(i64, bodylen));
     if tmpbuf == null {
         ret = 512 + 1;
         return ret;
@@ -2705,9 +2675,8 @@ i32 buffer_encrypt_record(ptls_buffer_t* buf, u64 rec_start, st_ptls_traffic_pro
     ptls_clear_memory(buf.base + rec_start, bodylen + 5);
     buf.off = rec_start;
     ret = buffer_push_encrypted_records(buf, type, tmpbuf, bodylen, enc);
+    return ret;
 }
-}
-private {
 i32 begin_record_message(ptls_message_emitter_t* _self) {
     var self = cast(st_ptls_record_message_emitter_t*, _self);
     i32 ret;
@@ -2724,8 +2693,6 @@ i32 begin_record_message(ptls_message_emitter_t* _self) {
     ret = 0;
     return ret;
 }
-}
-private {
 i32 commit_record_message(ptls_message_emitter_t* _self) {
     var self = cast(st_ptls_record_message_emitter_t*, _self);
     i32 ret;
@@ -2801,8 +2768,8 @@ u64 ptls_decode_quicint(u8** src, u8* end) {
 }
 private {
 void log_secret(ptls_t* tls, u8* type, ptls_iovec_t secret) {
-    u8[129] hexbuf;
-        while true {
+    noinit u8[129] hexbuf;
+    while true {
         u32 active = ptls_log_point_maybe_active(&log_secret__logpoint);
         if active == 0 {
             break;
@@ -2813,17 +2780,15 @@ void log_secret(ptls_t* tls, u8* type, ptls_iovec_t secret) {
         if active == 0 {
             break;
         }
-                if !(0 != 0) { break; }
+        if !(0 != 0) { break; }
     }
     if tls.ctx.log_event != null {
         tls.ctx.log_event.cb(tls.ctx.log_event, tls, type, "%s", ptls_hexdump(hexbuf, secret.base, secret.len));
     }
 }
-}
 /**
  * This function preserves the flags and  modes (e.g., `offered`, `accepted`, `cipher`), they can be used afterwards.
  */
-private {
 void clear_ech(st_ptls_ech_t* ech, i32 is_server) {
     if ech.aead != null {
         ptls_aead_free(ech.aead);
@@ -2841,12 +2806,10 @@ void clear_ech(st_ptls_ech_t* ech, i32 is_server) {
         ech.client.first_ech = ptls_iovec_init(null, 0);
     }
 }
-}
 /**
  * Decodes one ECHConfigContents (tls-esni-15 section 4). `decoded->kem` and `cipher` may be NULL even when the function returns
  * zero, if the corresponding entries are not found.
  */
-private {
 i32 decode_one_ech_config(ptls_hpke_kem_t** kems, ptls_hpke_cipher_suite_t** ciphers, st_decoded_ech_config_t* decoded, u8** src, u8* end) {
     u8* public_name_buf = null;
     defer {
@@ -3158,12 +3121,10 @@ i32 decode_one_ech_config(ptls_hpke_kem_t** kems, ptls_hpke_cipher_suite_t** cip
             }
             if !(0 != 0) { break; }
         }
-                if !(0 != 0) { break; }
+        if !(0 != 0) { break; }
     }
     return ret;
 }
-}
-private {
 i32 client_decode_ech_config_list(ptls_context_t* ctx, st_decoded_ech_config_t* decoded, ptls_iovec_t config_list) {
     i32 ret = 0;
     defer {
@@ -3248,7 +3209,7 @@ i32 client_decode_ech_config_list(ptls_context_t* ctx, st_decoded_ech_config_t* 
                                     while true {
                                         {
                                             if version == 65037 {
-                                                st_decoded_ech_config_t thisconf;
+                                                noinit st_decoded_ech_config_t thisconf;
                                                 ret = decode_one_ech_config(ctx.ech.client.kems, ctx.ech.client.ciphers, &thisconf, &src, end);
                                                 if ret != 0 {
                                                     return ret;
@@ -3292,13 +3253,11 @@ i32 client_decode_ech_config_list(ptls_context_t* ctx, st_decoded_ech_config_t* 
             }
             if !(0 != 0) { break; }
         }
-                if !(0 != 0) { break; }
+        if !(0 != 0) { break; }
     }
     ret = 0;
     return ret;
 }
-}
-private {
 i32 client_setup_ech(st_ptls_ech_t* ech, st_decoded_ech_config_t* decoded, fn(void*, u64): void random_bytes) {
     i32 ret = 0;
     defer {
@@ -3306,8 +3265,8 @@ i32 client_setup_ech(st_ptls_ech_t* ech, st_decoded_ech_config_t* decoded, fn(vo
             clear_ech(ech, 0);
         }
     }
-    ptls_buffer_t infobuf;
-    u8[256] infobuf_smallbuf;
+    noinit ptls_buffer_t infobuf;
+    noinit u8[256] infobuf_smallbuf;
     ptls_buffer_init(&infobuf, infobuf_smallbuf, cast(u64, sizeof(infobuf_smallbuf)));
     while true {
         ret = ptls_buffer__do_pushv(&infobuf, ech_info_prefix, cast(u64, sizeof(ech_info_prefix)));
@@ -3339,10 +3298,8 @@ i32 client_setup_ech(st_ptls_ech_t* ech, st_decoded_ech_config_t* decoded, fn(vo
     }
     return ret;
 }
-}
-private {
 void client_setup_ech_grease(st_ptls_ech_t* ech, fn(void*, u64): void random_bytes, ptls_hpke_kem_t** kems, ptls_hpke_cipher_suite_t** ciphers, u8* sni_name) {
-    u8[32] random_secret;
+    noinit u8[32] random_secret;
     for u64 i = 0; kems[i] != null; ++i {
         if kems[i].id == 32 {
             ech.kem = kems[i];
@@ -3361,7 +3318,7 @@ void client_setup_ech_grease(st_ptls_ech_t* ech, fn(void*, u64): void random_byt
     }
     random_bytes(random_secret, sizeof(random_secret));
     ech.aead = ptls_aead_new_direct(ech.cipher.aead, 1, random_secret, random_secret + 16);
-    ech.client.enc.base = malloc(client_setup_ech_grease__x25519_key_size);
+    ech.client.enc.base = alloc(cast(i64, client_setup_ech_grease__x25519_key_size));
     if ech.client.enc.base == null {
         clear_ech(ech, 0);
         return;
@@ -3377,8 +3334,6 @@ void client_setup_ech_grease(st_ptls_ech_t* ech, fn(void*, u64): void random_byt
     }
     return;
 }
-}
-private {
 i32 ech_calc_confirmation(ptls_key_schedule_t* sched, void* dst, u8* inner_random, u8* label, ptls_iovec_t message) {
     ptls_hash_context_t* hash = null;
     u8[64] secret;
@@ -3410,8 +3365,6 @@ i32 ech_calc_confirmation(ptls_key_schedule_t* sched, void* dst, u8* inner_rando
     }
     return ret;
 }
-}
-private {
 void key_schedule_free(ptls_key_schedule_t* sched) {
     u64 i;
     ptls_clear_memory(sched.secret, sizeof(sched.secret));
@@ -3423,8 +3376,6 @@ void key_schedule_free(ptls_key_schedule_t* sched) {
     }
     free(sched);
 }
-}
-private {
 ptls_key_schedule_t* key_schedule_new(ptls_cipher_suite_t* preferred, ptls_cipher_suite_t** offered, i32 use_outer) {
     ptls_key_schedule_t* sched;
     {
@@ -3461,7 +3412,7 @@ ptls_key_schedule_t* key_schedule_new(ptls_cipher_suite_t* preferred, ptls_ciphe
             }
             if !(0 != 0) { break; }
         }
-        sched = malloc(cast(u64, &cast(ptls_key_schedule_t*, 0).hashes) + cast(u64, sizeof(*(&sched.hashes[0] + 0))) * num_hashes);
+        sched = alloc(cast(i64, cast(u64, &cast(ptls_key_schedule_t*, 0).hashes) + cast(u64, sizeof(*(&sched.hashes[0] + 0))) * num_hashes));
         if sched == null {
             return null;
         }
@@ -3531,8 +3482,6 @@ ptls_key_schedule_t* key_schedule_new(ptls_cipher_suite_t* preferred, ptls_ciphe
     }
     return sched;
 }
-}
-private {
 i32 key_schedule_extract(ptls_key_schedule_t* sched, ptls_iovec_t ikm) {
     i32 ret;
     if ikm.base == null {
@@ -3546,10 +3495,8 @@ i32 key_schedule_extract(ptls_key_schedule_t* sched, ptls_iovec_t ikm) {
     }
     ++sched.generation;
     ret = ptls_hkdf_extract((*(&sched.hashes[0] + 0)).algo, sched.secret, ptls_iovec_init(sched.secret, (*(&sched.hashes[0] + 0)).algo.digest_size), ikm);
-        return ret;
+    return ret;
 }
-}
-private {
 i32 key_schedule_select_cipher(ptls_key_schedule_t* sched, ptls_cipher_suite_t* cs, i32 reset, ptls_iovec_t reset_ikm) {
     u64 found_slot = SIZE_MAX;
     u64 i;
@@ -3582,8 +3529,6 @@ i32 key_schedule_select_cipher(ptls_key_schedule_t* sched, ptls_cipher_suite_t* 
     ret = 0;
     return ret;
 }
-}
-private {
 void key_schedule_select_outer(ptls_key_schedule_t* sched) {
     assert(sched.generation == 1);
     assert(sched.num_hashes == 1);
@@ -3595,7 +3540,7 @@ void key_schedule_select_outer(ptls_key_schedule_t* sched) {
 }
 void ptls__key_schedule_update_hash(ptls_key_schedule_t* sched, u8* msg, u64 msglen, i32 use_outer) {
     u64 i;
-        for i = 0; i != sched.num_hashes; ++i {
+    for i = 0; i != sched.num_hashes; ++i {
         ptls_hash_context_t* ctx = use_outer != 0 ? (*(&sched.hashes[0] + i)).ctx_outer : (*(&sched.hashes[0] + i)).ctx;
         ctx.update(ctx, msg, msglen);
     }
@@ -3605,18 +3550,14 @@ void key_schedule_update_ch1hash_prefix(ptls_key_schedule_t* sched) {
     u8[4] prefix = {254, 0, 0, cast(u8, (*(&sched.hashes[0] + 0)).algo.digest_size)};
     ptls__key_schedule_update_hash(sched, prefix, cast(u64, sizeof(prefix)), 0);
 }
-}
-private {
 void key_schedule_extract_ch1hash(ptls_key_schedule_t* sched, u8* hash) {
     assert((*(&sched.hashes[0] + 0)).ctx_outer == null);
     (*(&sched.hashes[0] + 0)).ctx.final((*(&sched.hashes[0] + 0)).ctx, hash, PTLS_HASH_FINAL_MODE_RESET);
 }
-}
-private {
 void key_schedule_transform_post_ch1hash(ptls_key_schedule_t* sched) {
     u64 digest_size = (*(&sched.hashes[0] + 0)).algo.digest_size;
     ptls_hash_context_t*[3] hashes = {(*(&sched.hashes[0] + 0)).ctx, (*(&sched.hashes[0] + 0)).ctx_outer, null};
-    u8[64] ch1hash;
+    noinit u8[64] ch1hash;
     u8[4] prefix = {254, 0, 0, cast(u8, digest_size)};
     for u64 i = 0; hashes[i] != null; ++i {
         hashes[i].final(hashes[i], ch1hash, PTLS_HASH_FINAL_MODE_RESET);
@@ -3625,28 +3566,20 @@ void key_schedule_transform_post_ch1hash(ptls_key_schedule_t* sched) {
     }
     ptls_clear_memory(ch1hash, sizeof(ch1hash));
 }
-}
-private {
 i32 derive_secret_with_hash(ptls_key_schedule_t* sched, void* secret, u8* label, u8* hash) {
     i32 ret = ptls_hkdf_expand_label((*(&sched.hashes[0] + 0)).algo, secret, (*(&sched.hashes[0] + 0)).algo.digest_size, ptls_iovec_init(sched.secret, (*(&sched.hashes[0] + 0)).algo.digest_size), label, ptls_iovec_init(hash, (*(&sched.hashes[0] + 0)).algo.digest_size), null);
-        return ret;
+    return ret;
 }
-}
-private {
 i32 derive_secret(ptls_key_schedule_t* sched, void* secret, u8* label) {
-    u8[64] hash_value;
+    noinit u8[64] hash_value;
     (*(&sched.hashes[0] + 0)).ctx.final((*(&sched.hashes[0] + 0)).ctx, hash_value, PTLS_HASH_FINAL_MODE_SNAPSHOT);
     i32 ret = derive_secret_with_hash(sched, secret, label, hash_value);
     ptls_clear_memory(hash_value, sizeof(hash_value));
     return ret;
 }
-}
-private {
 i32 derive_secret_with_empty_digest(ptls_key_schedule_t* sched, void* secret, u8* label) {
     return derive_secret_with_hash(sched, secret, label, (*(&sched.hashes[0] + 0)).algo.empty_digest);
 }
-}
-private {
 i32 derive_exporter_secret(ptls_t* tls, i32 is_early) {
     i32 ret;
     if tls.ctx.use_exporter == 0 {
@@ -3654,7 +3587,7 @@ i32 derive_exporter_secret(ptls_t* tls, i32 is_early) {
     }
     u8** slot = is_early != 0 ? &tls.exporter_master_secret.early : &tls.exporter_master_secret.one_rtt;
     assert(*slot == null);
-    *slot = malloc((*(&tls.key_schedule.hashes[0] + 0)).algo.digest_size);
+    *slot = alloc(cast(i64, (*(&tls.key_schedule.hashes[0] + 0)).algo.digest_size));
     if *slot == null {
         return 512 + 1;
     }
@@ -3665,8 +3598,6 @@ i32 derive_exporter_secret(ptls_t* tls, i32 is_early) {
     log_secret(tls, is_early != 0 ? "EARLY_EXPORTER_SECRET" : "EXPORTER_SECRET", ptls_iovec_init(*slot, (*(&tls.key_schedule.hashes[0] + 0)).algo.digest_size));
     return 0;
 }
-}
-private {
 void free_exporter_master_secret(ptls_t* tls, i32 is_early) {
     u8* slot = is_early != 0 ? tls.exporter_master_secret.early : tls.exporter_master_secret.one_rtt;
     if slot == null {
@@ -3676,8 +3607,6 @@ void free_exporter_master_secret(ptls_t* tls, i32 is_early) {
     ptls_clear_memory(slot, (*(&tls.key_schedule.hashes[0] + 0)).algo.digest_size);
     free(slot);
 }
-}
-private {
 i32 derive_resumption_secret(ptls_key_schedule_t* sched, u8* secret, ptls_iovec_t nonce) {
     i32 ret = 0;
     defer {
@@ -3695,8 +3624,6 @@ i32 derive_resumption_secret(ptls_key_schedule_t* sched, u8* secret, ptls_iovec_
     }
     return ret;
 }
-}
-private {
 i32 decode_new_session_ticket(ptls_t* tls, u32* lifetime, u32* age_add, ptls_iovec_t* nonce, ptls_iovec_t* ticket, u32* max_early_data_size, u8* src, u8* end) {
     u16 exttype;
     i32 ret;
@@ -3928,13 +3855,11 @@ i32 decode_new_session_ticket(ptls_t* tls, u32* lifetime, u32* age_add, ptls_iov
             }
             if !(0 != 0) { break; }
         }
-                if !(0 != 0) { break; }
+        if !(0 != 0) { break; }
     }
     ret = 0;
     return ret;
 }
-}
-private {
 i32 decode_stored_session_ticket(ptls_t* tls, ptls_key_exchange_algorithm_t** key_share, ptls_cipher_suite_t** cs, ptls_iovec_t* secret, u32* obfuscated_ticket_age, ptls_iovec_t* ticket, u32* max_early_data_size, u8* src, u8* end) {
     u16 kxid;
     u16 csid;
@@ -3942,7 +3867,7 @@ i32 decode_stored_session_ticket(ptls_t* tls, ptls_key_exchange_algorithm_t** ke
     u32 age_add;
     u64 obtained_at;
     u64 now;
-    ptls_iovec_t nonce;
+    noinit ptls_iovec_t nonce;
     i32 ret;
     ret = ptls_decode64(&obtained_at, &src, end);
     if ret != 0 {
@@ -4057,7 +3982,7 @@ i32 decode_stored_session_ticket(ptls_t* tls, ptls_key_exchange_algorithm_t** ke
             }
             if !(0 != 0) { break; }
         }
-                if !(0 != 0) { break; }
+        if !(0 != 0) { break; }
     }
     {
         ptls_key_exchange_algorithm_t** cand;
@@ -4094,13 +4019,9 @@ i32 decode_stored_session_ticket(ptls_t* tls, ptls_key_exchange_algorithm_t** ke
     ret = 0;
     return ret;
 }
-}
-private {
 i32 get_traffic_key(ptls_hash_algorithm_t* algo, void* key, u64 key_size, i32 is_iv, void* secret, ptls_iovec_t hash_value, u8* label_prefix) {
     return ptls_hkdf_expand_label(algo, key, key_size, ptls_iovec_init(secret, algo.digest_size), is_iv != 0 ? "iv" : "key", hash_value, label_prefix);
 }
-}
-private {
 i32 get_traffic_keys(ptls_aead_algorithm_t* aead, ptls_hash_algorithm_t* hash, void* key, void* iv, void* secret, ptls_iovec_t hash_value, u8* label_prefix) {
     i32 ret;
     ret = get_traffic_key(hash, key, aead.key_size, 0, secret, hash_value, label_prefix);
@@ -4111,8 +4032,6 @@ i32 get_traffic_keys(ptls_aead_algorithm_t* aead, ptls_hash_algorithm_t* hash, v
     }
     return ret;
 }
-}
-private {
 i32 setup_traffic_protection(ptls_t* tls, i32 is_enc, u8* secret_label, u64 epoch, u64 seq, i32 skip_notify) {
     st_ptls_traffic_protection_t* ctx = is_enc != 0 ? &tls.traffic_protection.enc : &tls.traffic_protection.dec;
     if secret_label != null {
@@ -4140,8 +4059,6 @@ i32 setup_traffic_protection(ptls_t* tls, i32 is_enc, u8* secret_label, u64 epoc
     ctx.seq = seq;
     return 0;
 }
-}
-private {
 i32 commission_handshake_secret(ptls_t* tls) {
     i32 is_enc = !ptls_is_server(tls);
     assert(tls.pending_handshake_secret != null);
@@ -4151,10 +4068,8 @@ i32 commission_handshake_secret(ptls_t* tls) {
     tls.pending_handshake_secret = null;
     return setup_traffic_protection(tls, is_enc, null, 2, 0, 1);
 }
-}
-private {
 void log_client_random(ptls_t* tls) {
-        while true {
+    while true {
         u32 active = ptls_log_point_maybe_active(&log_client_random__logpoint);
         if active == 0 {
             break;
@@ -4165,11 +4080,9 @@ void log_client_random(ptls_t* tls) {
         if active == 0 {
             break;
         }
-                if !(0 != 0) { break; }
+        if !(0 != 0) { break; }
     }
 }
-}
-private {
 i32 encode_session_identifier(ptls_context_t* ctx, ptls_buffer_t* buf, u32 ticket_age_add, ptls_iovec_t ticket_nonce, ptls_key_schedule_t* sched, u8* server_name, u16 key_exchange_id, u16 csid, u8* negotiated_protocol) {
     i32 ret = 0;
     while true {
@@ -4606,7 +4519,7 @@ i32 decode_session_identifier(u64* issued_at, ptls_iovec_t* psk, u32* ticket_age
             }
             if !(0 != 0) { break; }
         }
-                if !(0 != 0) { break; }
+        if !(0 != 0) { break; }
     }
     return ret;
 }
@@ -4622,11 +4535,9 @@ u64 build_certificate_verify_signdata(u8* data, ptls_key_schedule_t* sched, u8* 
     assert(datalen <= cast(u64, 64 + sizeof("TLS 1.3, server CertificateVerify") + 64 * 2));
     return datalen;
 }
-}
-private {
 i32 calc_verify_data(void* output, ptls_key_schedule_t* sched, void* secret) {
     ptls_hash_context_t* hmac;
-    u8[64] digest;
+    noinit u8[64] digest;
     i32 ret;
     ret = ptls_hkdf_expand_label((*(&sched.hashes[0] + 0)).algo, digest, (*(&sched.hashes[0] + 0)).algo.digest_size, ptls_iovec_init(secret, (*(&sched.hashes[0] + 0)).algo.digest_size), "finished", ptls_iovec_init(null, 0), null);
     if ret != 0 {
@@ -4638,13 +4549,11 @@ i32 calc_verify_data(void* output, ptls_key_schedule_t* sched, void* secret) {
         return 512 + 1;
     }
     (*(&sched.hashes[0] + 0)).ctx.final((*(&sched.hashes[0] + 0)).ctx, digest, PTLS_HASH_FINAL_MODE_SNAPSHOT);
-        hmac.update(hmac, digest, (*(&sched.hashes[0] + 0)).algo.digest_size);
+    hmac.update(hmac, digest, (*(&sched.hashes[0] + 0)).algo.digest_size);
     ptls_clear_memory(digest, sizeof(digest));
     hmac.final(hmac, output, PTLS_HASH_FINAL_MODE_FREE);
     return 0;
 }
-}
-private {
 i32 verify_finished(ptls_t* tls, ptls_iovec_t message) {
     u8[64] verify_data;
     defer {
@@ -4665,8 +4574,6 @@ i32 verify_finished(ptls_t* tls, ptls_iovec_t message) {
     }
     return ret;
 }
-}
-private {
 i32 send_finished(ptls_t* tls, ptls_message_emitter_t* emitter) {
     i32 ret;
     while true {
@@ -4742,8 +4649,6 @@ i32 send_finished(ptls_t* tls, ptls_message_emitter_t* emitter) {
     }
     return ret;
 }
-}
-private {
 i32 send_session_ticket(ptls_t* tls, ptls_message_emitter_t* emitter) {
     ptls_hash_context_t* msghash_backup = null;
     ptls_buffer_t session_id;
@@ -4753,7 +4658,7 @@ i32 send_session_ticket(ptls_t* tls, ptls_message_emitter_t* emitter) {
         (*(&tls.key_schedule.hashes[0] + 0)).ctx = msghash_backup;
     }
     msghash_backup = (*(&tls.key_schedule.hashes[0] + 0)).ctx.clone_((*(&tls.key_schedule.hashes[0] + 0)).ctx);
-    u8[128] session_id_smallbuf;
+    noinit u8[128] session_id_smallbuf;
     u32 ticket_age_add;
     i32 ret = 0;
     assert(tls.ctx.ticket_lifetime != 0);
@@ -5083,7 +4988,7 @@ i32 send_session_ticket(ptls_t* tls, ptls_message_emitter_t* emitter) {
                                             if !(0 != 0) { break; }
                                         }
                                     }
-                                                                    }
+                                }
                                 if !(0 != 0) { break; }
                             }
                             u64 body_size = emitter.buf.off - body_start;
@@ -5136,8 +5041,6 @@ i32 send_session_ticket(ptls_t* tls, ptls_message_emitter_t* emitter) {
     }
     return ret;
 }
-}
-private {
 i32 push_change_cipher_spec(ptls_t* tls, ptls_message_emitter_t* emitter) {
     i32 ret;
     if tls.send_change_cipher_spec == 0 {
@@ -5205,8 +5108,6 @@ i32 push_change_cipher_spec(ptls_t* tls, ptls_message_emitter_t* emitter) {
     ret = 0;
     return ret;
 }
-}
-private {
 i32 push_additional_extensions(ptls_handshake_properties_t* properties, ptls_buffer_t* sendbuf) {
     i32 ret;
     if properties != null && properties.additional_extensions != null {
@@ -5267,13 +5168,11 @@ i32 push_additional_extensions(ptls_handshake_properties_t* properties, ptls_buf
                 }
                 if !(0 != 0) { break; }
             }
-                    }
+        }
     }
     ret = 0;
     return ret;
 }
-}
-private {
 i32 push_signature_algorithms(ptls_verify_certificate_t* vc, ptls_buffer_t* sendbuf) {
     i32 ret;
     while true {
@@ -5326,8 +5225,6 @@ i32 push_signature_algorithms(ptls_verify_certificate_t* vc, ptls_buffer_t* send
     ret = 0;
     return ret;
 }
-}
-private {
 i32 decode_signature_algorithms(st_ptls_signature_algorithms_t* sa, u8** src, u8* end) {
     i32 ret;
     while true {
@@ -5392,16 +5289,14 @@ i32 decode_signature_algorithms(st_ptls_signature_algorithms_t* sa, u8** src, u8
             }
             if !(0 != 0) { break; }
         }
-                if !(0 != 0) { break; }
+        if !(0 != 0) { break; }
     }
     ret = 0;
     return ret;
 }
-}
 /**
  * @param hash optional argument for restricting the underlying hash algorithm
  */
-private {
 i32 select_cipher(ptls_cipher_suite_t** selected, ptls_cipher_suite_t** candidates, u8* src, u8* end, i32 server_preference, i32 server_chacha_priority, ptls_hash_algorithm_t* hash) {
     u64 found_index = SIZE_MAX;
     i32 ret;
@@ -5437,8 +5332,6 @@ i32 select_cipher(ptls_cipher_suite_t** selected, ptls_cipher_suite_t** candidat
     }
     return ret;
 }
-}
-private {
 i32 push_key_share_entry(ptls_buffer_t* buf, u16 group, ptls_iovec_t pubkey) {
     i32 ret;
     while true {
@@ -5496,8 +5389,6 @@ i32 push_key_share_entry(ptls_buffer_t* buf, u16 group, ptls_iovec_t pubkey) {
     ret = 0;
     return ret;
 }
-}
-private {
 i32 decode_key_share_entry(u16* group, ptls_iovec_t* key_exchange, u8** src, u8* end) {
     i32 ret;
     ret = ptls_decode16(group, src, end);
@@ -5551,8 +5442,6 @@ i32 decode_key_share_entry(u16* group, ptls_iovec_t* key_exchange, u8** src, u8*
     }
     return ret;
 }
-}
-private {
 i32 select_key_share(ptls_key_exchange_algorithm_t** selected, ptls_iovec_t* peer_key, ptls_key_exchange_algorithm_t** candidates, u8** src, u8* end, i32 expect_one) {
     i32 ret;
     *selected = null;
@@ -5562,7 +5451,7 @@ i32 select_key_share(ptls_key_exchange_algorithm_t** selected, ptls_iovec_t* pee
     }
     while *src != end {
         u16 group;
-        ptls_iovec_t key;
+        noinit ptls_iovec_t key;
         ret = decode_key_share_entry(&group, &key, src, end);
         if ret != 0 {
             return ret;
@@ -5582,8 +5471,6 @@ i32 select_key_share(ptls_key_exchange_algorithm_t** selected, ptls_iovec_t* pee
     ret = 0;
     return ret;
 }
-}
-private {
 i32 emit_server_name_extension(ptls_buffer_t* buf, u8* server_name) {
     i32 ret;
     while true {
@@ -5669,16 +5556,12 @@ i32 emit_server_name_extension(ptls_buffer_t* buf, u8* server_name) {
     ret = 0;
     return ret;
 }
-}
 /**
  * Within the outer ECH extension, returns the number of bytes that preceeds the AEAD-encrypted payload.
  */
-private {
 u64 outer_ech_header_size(u64 enc_size) {
     return 10 + enc_size;
 }
-}
-private {
 i32 encode_client_hello(ptls_context_t* ctx, ptls_buffer_t* sendbuf, encode_ch_mode mode, i32 is_second_flight, ptls_handshake_properties_t* properties, void* client_random, ptls_key_exchange_context_t* key_share_ctx, u8* sni_name, ptls_iovec_t legacy_session_id, st_ptls_ech_t* ech, u64* ech_size_offset, ptls_iovec_t ech_replay, ptls_iovec_t psk_secret, ptls_iovec_t psk_identity, u32 obfuscated_ticket_age, u64 psk_binder_size, ptls_iovec_t* cookie, i32 using_early_data) {
     i32 ret;
     assert(mode == ENCODE_CH_MODE_INNER || ech != null);
@@ -6044,7 +5927,7 @@ i32 encode_client_hello(ptls_context_t* ctx, ptls_buffer_t* sendbuf, encode_ch_m
                                         }
                                         if !(0 != 0) { break; }
                                     }
-                                                                    } else if ech.aead != null {
+                                } else if ech.aead != null {
                                     while true {
                                         while true {
                                             u16 _v = 65037;
@@ -6102,7 +5985,7 @@ i32 encode_client_hello(ptls_context_t* ctx, ptls_buffer_t* sendbuf, encode_ch_m
                                         }
                                         if !(0 != 0) { break; }
                                     }
-                                                                    } else if ech_replay.base != null {
+                                } else if ech_replay.base != null {
                                     while true {
                                         while true {
                                             u16 _v = 65037;
@@ -6158,7 +6041,7 @@ i32 encode_client_hello(ptls_context_t* ctx, ptls_buffer_t* sendbuf, encode_ch_m
                                         }
                                         if !(0 != 0) { break; }
                                     }
-                                                                    }
+                                }
                                 if mode == ENCODE_CH_MODE_ENCODED_INNER {
                                     while true {
                                         while true {
@@ -6253,7 +6136,7 @@ i32 encode_client_hello(ptls_context_t* ctx, ptls_buffer_t* sendbuf, encode_ch_m
                                         }
                                         if !(0 != 0) { break; }
                                     }
-                                                                    } else {
+                                } else {
                                     while true {
                                         while true {
                                             u16 _v = 51;
@@ -6340,7 +6223,7 @@ i32 encode_client_hello(ptls_context_t* ctx, ptls_buffer_t* sendbuf, encode_ch_m
                                         }
                                         if !(0 != 0) { break; }
                                     }
-                                                                    }
+                                }
                                 if sni_name != null {
                                     while true {
                                         while true {
@@ -6394,7 +6277,7 @@ i32 encode_client_hello(ptls_context_t* ctx, ptls_buffer_t* sendbuf, encode_ch_m
                                         }
                                         if !(0 != 0) { break; }
                                     }
-                                                                    }
+                                }
                                 if properties != null && properties.client.negotiated_protocols.count != 0 {
                                     while true {
                                         while true {
@@ -6519,7 +6402,7 @@ i32 encode_client_hello(ptls_context_t* ctx, ptls_buffer_t* sendbuf, encode_ch_m
                                         }
                                         if !(0 != 0) { break; }
                                     }
-                                                                    }
+                                }
                                 if ctx.decompress_certificate != null {
                                     while true {
                                         while true {
@@ -6618,7 +6501,7 @@ i32 encode_client_hello(ptls_context_t* ctx, ptls_buffer_t* sendbuf, encode_ch_m
                                         }
                                         if !(0 != 0) { break; }
                                     }
-                                                                    }
+                                }
                                 while true {
                                     while true {
                                         u16 _v = 43;
@@ -6715,7 +6598,7 @@ i32 encode_client_hello(ptls_context_t* ctx, ptls_buffer_t* sendbuf, encode_ch_m
                                     }
                                     if !(0 != 0) { break; }
                                 }
-                                                                while true {
+                                while true {
                                     while true {
                                         u16 _v = 13;
                                         while true {
@@ -6767,7 +6650,7 @@ i32 encode_client_hello(ptls_context_t* ctx, ptls_buffer_t* sendbuf, encode_ch_m
                                     }
                                     if !(0 != 0) { break; }
                                 }
-                                                                if ctx.key_exchanges != null {
+                                if ctx.key_exchanges != null {
                                     while true {
                                         while true {
                                             u16 _v = 10;
@@ -6864,7 +6747,7 @@ i32 encode_client_hello(ptls_context_t* ctx, ptls_buffer_t* sendbuf, encode_ch_m
                                         }
                                         if !(0 != 0) { break; }
                                     }
-                                                                    }
+                                }
                                 if cookie != null && cookie.base != null {
                                     while true {
                                         while true {
@@ -6953,7 +6836,7 @@ i32 encode_client_hello(ptls_context_t* ctx, ptls_buffer_t* sendbuf, encode_ch_m
                                         }
                                         if !(0 != 0) { break; }
                                     }
-                                                                    }
+                                }
                                 if ctx.use_raw_public_keys != 0 {
                                     while true {
                                         while true {
@@ -7044,7 +6927,7 @@ i32 encode_client_hello(ptls_context_t* ctx, ptls_buffer_t* sendbuf, encode_ch_m
                                         }
                                         if !(0 != 0) { break; }
                                     }
-                                                                    }
+                                }
                                 if ctx.save_ticket != null && (ctx.ticket_requests.client.new_session_count != 0 || ctx.ticket_requests.client.resumption_count != 0) {
                                     while true {
                                         while true {
@@ -7103,7 +6986,7 @@ i32 encode_client_hello(ptls_context_t* ctx, ptls_buffer_t* sendbuf, encode_ch_m
                                         }
                                         if !(0 != 0) { break; }
                                     }
-                                                                    }
+                                }
                                 ret = push_additional_extensions(properties, sendbuf);
                                 if ret != 0 {
                                     return ret;
@@ -7209,7 +7092,7 @@ i32 encode_client_hello(ptls_context_t* ctx, ptls_buffer_t* sendbuf, encode_ch_m
                                         }
                                         if !(0 != 0) { break; }
                                     }
-                                                                    }
+                                }
                                 if psk_secret.base != null {
                                     if using_early_data && !is_second_flight {
                                         while true {
@@ -7261,7 +7144,7 @@ i32 encode_client_hello(ptls_context_t* ctx, ptls_buffer_t* sendbuf, encode_ch_m
                                             if !(0 != 0) { break; }
                                         }
                                     }
-                                                                        while true {
+                                    while true {
                                         while true {
                                             u16 _v = 41;
                                             while true {
@@ -7478,7 +7361,7 @@ i32 encode_client_hello(ptls_context_t* ctx, ptls_buffer_t* sendbuf, encode_ch_m
                                         }
                                         if !(0 != 0) { break; }
                                     }
-                                                                    }
+                                }
                             }
                             if !(0 != 0) { break; }
                         }
@@ -7526,12 +7409,10 @@ i32 encode_client_hello(ptls_context_t* ctx, ptls_buffer_t* sendbuf, encode_ch_m
     }
     return ret;
 }
-}
 /**
  * Feeds the CH message into the hash, computing the PSK binder if necessary. `binder_key` must be derived before calling this
  * function.
  */
-private {
 i32 update_ch_hash_and_binder(ptls_key_schedule_t* ks, u8* ch, u64 ch_start, u64 ch_end, i32 has_psk, u8* binder_key, i32 is_outer) {
     i32 ret = 0;
     u64 hash_off = ch_start;
@@ -7547,8 +7428,6 @@ i32 update_ch_hash_and_binder(ptls_key_schedule_t* ks, u8* ch, u64 ch_start, u64
     ptls__key_schedule_update_hash(ks, ch + hash_off, ch_end - hash_off, is_outer);
     return ret;
 }
-}
-private {
 i32 send_client_hello(ptls_t* tls, ptls_message_emitter_t* emitter, ptls_handshake_properties_t* properties, ptls_iovec_t* cookie) {
     u8[64] binder_key;
     ptls_buffer_t encoded_ch_inner;
@@ -7556,7 +7435,7 @@ i32 send_client_hello(ptls_t* tls, ptls_message_emitter_t* emitter, ptls_handsha
         ptls_buffer_dispose(&encoded_ch_inner);
         ptls_clear_memory(binder_key, sizeof(binder_key));
     }
-    __anon_struct_44 psk;
+    __anon_picotls_struct_44 psk;
     u32 obfuscated_ticket_age = 0;
     u8* sni_name = null;
     u64 mess_start;
@@ -7569,7 +7448,7 @@ i32 send_client_hello(ptls_t* tls, ptls_message_emitter_t* emitter, ptls_handsha
     if properties != null {
         if !is_second_flight && sni_name != null && tls.ctx.ech.client.ciphers != null {
             if properties.client.ech.configs.len != 0 {
-                st_decoded_ech_config_t decoded;
+                noinit st_decoded_ech_config_t decoded;
                 client_decode_ech_config_list(tls.ctx, &decoded, properties.client.ech.configs);
                 if decoded.kem != null && decoded.cipher != null {
                     ret = client_setup_ech(&tls.ech, &decoded, tls.ctx.random_bytes);
@@ -7713,7 +7592,7 @@ i32 send_client_hello(ptls_t* tls, ptls_message_emitter_t* emitter, ptls_handsha
         ptls_aead_encrypt(tls.ech.aead, emitter.buf.base + ech_size_offset, encoded_ch_inner.base + 4, encoded_ch_inner.off - 4, cast(u64, is_second_flight), emitter.buf.base + mess_start + 4, emitter.buf.off - (mess_start + 4));
         if is_second_flight == 0 {
             u64 len = outer_ech_header_size(tls.ech.client.enc.len) + ech_payload_size;
-            tls.ech.client.first_ech.base = malloc(len);
+            tls.ech.client.first_ech.base = alloc(cast(i64, len));
             if tls.ech.client.first_ech.base == null {
                 ret = 512 + 1;
                 return ret;
@@ -7772,7 +7651,7 @@ ptls_cipher_suite_t* ptls_find_cipher_suite(ptls_cipher_suite_t** cipher_suites,
         return null;
     }
     for cs = cipher_suites; *cs != null && (*cs).id != id; ++cs {
-            }
+    }
     return *cs;
 }
 private {
@@ -8042,7 +7921,7 @@ i32 decode_server_hello(ptls_t* tls, st_ptls_server_hello_t* sh, u8* src, u8* en
                                                                 }
                                                                 if !(0 != 0) { break; }
                                                             }
-                                                                                                                        if !(0 != 0) { break; }
+                                                            if !(0 != 0) { break; }
                                                         }
                                                     }
                                                     case 41: {
@@ -8101,7 +7980,7 @@ i32 decode_server_hello(ptls_t* tls, st_ptls_server_hello_t* sh, u8* src, u8* en
             }
             if !(0 != 0) { break; }
         }
-                if !(0 != 0) { break; }
+        if !(0 != 0) { break; }
     }
     if is_supported_version(found_version) == 0 {
         ret = 47;
@@ -8127,8 +8006,6 @@ i32 decode_server_hello(ptls_t* tls, st_ptls_server_hello_t* sh, u8* src, u8* en
     ret = 0;
     return ret;
 }
-}
-private {
 i32 handle_hello_retry_request(ptls_t* tls, ptls_message_emitter_t* emitter, st_ptls_server_hello_t* sh, ptls_iovec_t message, ptls_handshake_properties_t* properties) {
     i32 ret;
     if tls.client.key_share_ctx != null {
@@ -8163,12 +8040,10 @@ i32 handle_hello_retry_request(ptls_t* tls, ptls_message_emitter_t* emitter, st_
     ret = send_client_hello(tls, emitter, properties, &sh.retry_request.cookie);
     return ret;
 }
-}
-private {
 i32 client_ech_select_hello(ptls_t* tls, ptls_iovec_t message, u64 confirm_hash_off, u8* label) {
     u8[8] confirm_hash_expected;
     defer {
-                while true {
+        while true {
             u32 active = ptls_log_point_maybe_active(&client_ech_select_hello__logpoint);
             if active == 0 {
                 break;
@@ -8179,11 +8054,11 @@ i32 client_ech_select_hello(ptls_t* tls, ptls_iovec_t message, u64 confirm_hash_
             if active == 0 {
                 break;
             }
-                        if !(0 != 0) { break; }
+            if !(0 != 0) { break; }
         }
         ptls_clear_memory(confirm_hash_expected, sizeof(confirm_hash_expected));
     }
-    u8[8] confirm_hash_delivered;
+    noinit u8[8] confirm_hash_delivered;
     i32 ret = 0;
     if confirm_hash_off != 0 {
         memcpy(confirm_hash_delivered, message.base + confirm_hash_off, cast(u64, sizeof(confirm_hash_delivered)));
@@ -8207,8 +8082,6 @@ i32 client_ech_select_hello(ptls_t* tls, ptls_iovec_t message, u64 confirm_hash_
     key_schedule_select_outer(tls.key_schedule);
     return ret;
 }
-}
-private {
 i32 client_handle_hello(ptls_t* tls, ptls_message_emitter_t* emitter, ptls_iovec_t message, ptls_handshake_properties_t* properties) {
     ptls_iovec_t ecdh_secret;
     bool _keep = false;
@@ -8220,7 +8093,7 @@ i32 client_handle_hello(ptls_t* tls, ptls_message_emitter_t* emitter, ptls_iovec
             }
         }
     }
-    st_ptls_server_hello_t sh;
+    noinit st_ptls_server_hello_t sh;
     i32 ret;
     ret = decode_server_hello(tls, &sh, message.base + 4, message.base + message.len);
     if ret != 0 {
@@ -8292,7 +8165,7 @@ i32 client_handle_hello(ptls_t* tls, ptls_message_emitter_t* emitter, ptls_iovec
         return ret;
     }
     if tls.client.using_early_data != 0 {
-        tls.pending_handshake_secret = malloc(cast(u64, 64));
+        tls.pending_handshake_secret = alloc(64);
         if tls.pending_handshake_secret == null {
             ret = 512 + 1;
             return ret;
@@ -8315,14 +8188,11 @@ i32 client_handle_hello(ptls_t* tls, ptls_message_emitter_t* emitter, ptls_iovec
     }
     tls.state = PTLS_STATE_CLIENT_EXPECT_ENCRYPTED_EXTENSIONS;
     ret = 512 + 2;
+    return ret;
 }
-}
-private {
 i32 should_collect_unknown_extension(ptls_t* tls, ptls_handshake_properties_t* properties, u16 type) {
     return properties != null && properties.collect_extension != null && properties.collect_extension(tls, properties, type);
 }
-}
-private {
 i32 collect_unknown_extension(ptls_t* tls, u16 type, u8* src, u8* end, ptls_raw_extension_t* slots) {
     u64 i;
     for i = 0; slots[i].type != UINT16_MAX; ++i {
@@ -8338,8 +8208,6 @@ i32 collect_unknown_extension(ptls_t* tls, u16 type, u8* src, u8* end, ptls_raw_
     }
     return 0;
 }
-}
-private {
 i32 report_unknown_extensions(ptls_t* tls, ptls_handshake_properties_t* properties, ptls_raw_extension_t* slots) {
     if properties != null && properties.collect_extension != null {
         assert(properties.collected_extensions != null);
@@ -8348,8 +8216,6 @@ i32 report_unknown_extensions(ptls_t* tls, ptls_handshake_properties_t* properti
         return 0;
     }
 }
-}
-private {
 i32 client_handle_encrypted_extensions(ptls_t* tls, ptls_iovec_t message, ptls_handshake_properties_t* properties) {
     ptls_raw_extension_t* unknown_extensions = null;
     defer {
@@ -8565,7 +8431,7 @@ i32 client_handle_encrypted_extensions(ptls_t* tls, ptls_iovec_t message, ptls_h
                                                                 }
                                                                 if !(0 != 0) { break; }
                                                             }
-                                                                                                                        if !(0 != 0) { break; }
+                                                            if !(0 != 0) { break; }
                                                         }
                                                     }
                                                     case 42: {
@@ -8589,14 +8455,14 @@ i32 client_handle_encrypted_extensions(ptls_t* tls, ptls_iovec_t message, ptls_h
                                                                 ret = 110;
                                                                 return ret;
                                                             }
-                                                            st_decoded_ech_config_t decoded;
+                                                            noinit st_decoded_ech_config_t decoded;
                                                             ret = client_decode_ech_config_list(tls.ctx, &decoded, ptls_iovec_init(src, cast(u64, cast(i64, end - src))));
                                                             if ret != 0 {
                                                                 return ret;
                                                             }
                                                             if tls.ech.state == PTLS_ECH_STATE_GREASE {
                                                             } else if decoded.kem != null && decoded.cipher != null && properties != null && properties.client.ech.retry_configs != null {
-                                                                properties.client.ech.retry_configs.base = malloc(cast(u64, cast(i64, end - src)));
+                                                                properties.client.ech.retry_configs.base = alloc(cast(i64, end - src));
                                                                 if properties.client.ech.retry_configs.base == null {
                                                                     ret = 512 + 1;
                                                                     return ret;
@@ -8610,7 +8476,7 @@ i32 client_handle_encrypted_extensions(ptls_t* tls, ptls_iovec_t message, ptls_h
                                                     default: {
                                                         if should_collect_unknown_extension(tls, properties, type) != 0 {
                                                             if unknown_extensions == &client_handle_encrypted_extensions__no_unknown_extensions {
-                                                                unknown_extensions = malloc(cast(u64, sizeof(*unknown_extensions) * (16 + 1)));
+                                                                unknown_extensions = alloc(sizeof(*unknown_extensions) * (16 + 1));
                                                                 if unknown_extensions == null {
                                                                     ret = 512 + 1;
                                                                     return ret;
@@ -8657,7 +8523,7 @@ i32 client_handle_encrypted_extensions(ptls_t* tls, ptls_iovec_t message, ptls_h
             }
             if !(0 != 0) { break; }
         }
-                if !(0 != 0) { break; }
+        if !(0 != 0) { break; }
     }
     if cast(i32, server_offered_cert_type) != (tls.ctx.use_raw_public_keys != 0 ? 2 : 0) {
         ret = 43;
@@ -8680,8 +8546,6 @@ i32 client_handle_encrypted_extensions(ptls_t* tls, ptls_iovec_t message, ptls_h
     ret = 512 + 2;
     return ret;
 }
-}
-private {
 i32 decode_certificate_request(ptls_t* tls, st_ptls_certificate_request_t* cr, u8* src, u8* end) {
     i32 ret;
     u16 exttype = 0;
@@ -8722,7 +8586,7 @@ i32 decode_certificate_request(ptls_t* tls, st_ptls_certificate_request_t* cr, u
                         ret = 50;
                         return ret;
                     }
-                    cr.context.base = malloc(len != 0 ? len : 1);
+                    cr.context.base = alloc(cast(i64, len != 0 ? len : 1));
                     if cr.context.base == null {
                         ret = 512 + 1;
                         return ret;
@@ -8864,7 +8728,7 @@ i32 decode_certificate_request(ptls_t* tls, st_ptls_certificate_request_t* cr, u
             }
             if !(0 != 0) { break; }
         }
-                if !(0 != 0) { break; }
+        if !(0 != 0) { break; }
     }
     if cr.signature_algorithms.count == 0 {
         ret = 109;
@@ -9077,7 +8941,7 @@ i32 ptls_build_certificate_message(ptls_buffer_t* buf, ptls_iovec_t context, ptl
                                         }
                                         if !(0 != 0) { break; }
                                     }
-                                                                    }
+                                }
                             }
                             if !(0 != 0) { break; }
                         }
@@ -9194,8 +9058,6 @@ i32 default_emit_certificate_cb(ptls_emit_certificate_t* _self, ptls_t* tls, ptl
     ret = 0;
     return ret;
 }
-}
-private {
 i32 send_certificate(ptls_t* tls, ptls_message_emitter_t* emitter, st_ptls_signature_algorithms_t* signature_algorithms, ptls_iovec_t context, i32 push_status_request, u16* compress_algos, u64 num_compress_algos) {
     i32 ret;
     if signature_algorithms.count == 0 {
@@ -9219,8 +9081,6 @@ i32 send_certificate(ptls_t* tls, ptls_message_emitter_t* emitter, st_ptls_signa
     }
     return ret;
 }
-}
-private {
 i32 send_certificate_verify(ptls_t* tls, ptls_message_emitter_t* emitter, st_ptls_signature_algorithms_t* signature_algorithms, u8* context_string) {
     bool _keep = false;
     defer {
@@ -9230,7 +9090,6 @@ i32 send_certificate_verify(ptls_t* tls, ptls_message_emitter_t* emitter, st_ptl
     u64 start_off = emitter.buf.off;
     i32 ret;
     if tls.ctx.sign_certificate == null {
-        _keep = true;
         _keep = true;
         return 0;
     }
@@ -9293,7 +9152,7 @@ i32 send_certificate_verify(ptls_t* tls, ptls_message_emitter_t* emitter, st_ptl
                             while true {
                                 {
                                     u16 algo;
-                                    u8[64 + sizeof("TLS 1.3, server CertificateVerify") + 64 * 2] data;
+                                    noinit u8[64 + sizeof("TLS 1.3, server CertificateVerify") + 64 * 2] data;
                                     u64 datalen = build_certificate_verify_signdata(data, tls.key_schedule, context_string);
                                     ret = tls.ctx.sign_certificate.cb(tls.ctx.sign_certificate, tls, tls.is_server != 0 ? &tls.server.async_job : null, &algo, sendbuf, ptls_iovec_init(data, datalen), signature_algorithms != null ? signature_algorithms.list : null, signature_algorithms != null ? signature_algorithms.count : 0);
                                     if ret == 512 + 11 {
@@ -9359,9 +9218,8 @@ i32 send_certificate_verify(ptls_t* tls, ptls_message_emitter_t* emitter, st_ptl
         }
         if !(0 != 0) { break; }
     }
+    return ret;
 }
-}
-private {
 i32 client_handle_certificate_request(ptls_t* tls, ptls_iovec_t message, ptls_handshake_properties_t* properties) {
     u8* src = message.base + 4;
     u8* end = message.base + message.len;
@@ -9378,10 +9236,8 @@ i32 client_handle_certificate_request(ptls_t* tls, ptls_iovec_t message, ptls_ha
     ptls__key_schedule_update_hash(tls.key_schedule, message.base, message.len, 0);
     return 512 + 2;
 }
-}
-private {
 i32 handle_certificate(ptls_t* tls, u8* src, u8* end, i32* got_certs) {
-    ptls_iovec_t[16] certs;
+    noinit ptls_iovec_t[16] certs;
     u64 num_certs = 0;
     i32 ret = 0;
     while true {
@@ -9639,7 +9495,7 @@ i32 handle_certificate(ptls_t* tls, u8* src, u8* end, i32* got_certs) {
             }
             if !(0 != 0) { break; }
         }
-                if !(0 != 0) { break; }
+        if !(0 != 0) { break; }
     }
     if tls.ctx.verify_certificate != null {
         u8* server_name = null;
@@ -9658,8 +9514,6 @@ i32 handle_certificate(ptls_t* tls, u8* src, u8* end, i32* got_certs) {
     *got_certs = num_certs != 0;
     return ret;
 }
-}
-private {
 i32 client_do_handle_certificate(ptls_t* tls, u8* src, u8* end) {
     i32 got_certs;
     i32 ret;
@@ -9672,8 +9526,6 @@ i32 client_do_handle_certificate(ptls_t* tls, u8* src, u8* end) {
     }
     return 0;
 }
-}
-private {
 i32 client_handle_certificate(ptls_t* tls, ptls_iovec_t message) {
     i32 ret;
     ret = client_do_handle_certificate(tls, message.base + 4, message.base + message.len);
@@ -9684,8 +9536,6 @@ i32 client_handle_certificate(ptls_t* tls, ptls_iovec_t message) {
     tls.state = PTLS_STATE_CLIENT_EXPECT_CERTIFICATE_VERIFY;
     return 512 + 2;
 }
-}
-private {
 i32 client_handle_compressed_certificate(ptls_t* tls, ptls_iovec_t message) {
     u8* uncompressed = null;
     defer {
@@ -9713,7 +9563,7 @@ i32 client_handle_compressed_certificate(ptls_t* tls, ptls_iovec_t message) {
         ret = 42;
         return ret;
     }
-    uncompressed = malloc(cast(u64, uncompressed_size));
+    uncompressed = alloc(cast(i64, uncompressed_size));
     if uncompressed == null {
         ret = 512 + 1;
         return ret;
@@ -9751,7 +9601,7 @@ i32 client_handle_compressed_certificate(ptls_t* tls, ptls_iovec_t message) {
                 u8* end = src + _block_size;
                 while true {
                     {
-                        ret = tls.ctx.decompress_certificate.cb(tls.ctx.decompress_certificate, tls, algo, ptls_iovec_init(uncompressed, uncompressed_size), ptls_iovec_init(src, cast(u64, cast(i64, end - src))));
+                        ret = tls.ctx.decompress_certificate.cb(tls.ctx.decompress_certificate, tls, algo, ptls_iovec_init(uncompressed, cast(u64, uncompressed_size)), ptls_iovec_init(src, cast(u64, cast(i64, end - src))));
                         if ret != 0 {
                             return ret;
                         }
@@ -9774,7 +9624,7 @@ i32 client_handle_compressed_certificate(ptls_t* tls, ptls_iovec_t message) {
             }
             if !(0 != 0) { break; }
         }
-                if !(0 != 0) { break; }
+        if !(0 != 0) { break; }
     }
     ret = client_do_handle_certificate(tls, uncompressed, uncompressed + uncompressed_size);
     if ret != 0 {
@@ -9785,8 +9635,6 @@ i32 client_handle_compressed_certificate(ptls_t* tls, ptls_iovec_t message) {
     ret = 512 + 2;
     return ret;
 }
-}
-private {
 i32 server_handle_certificate(ptls_t* tls, ptls_iovec_t message) {
     i32 got_certs;
     i32 ret;
@@ -9802,14 +9650,12 @@ i32 server_handle_certificate(ptls_t* tls, ptls_iovec_t message) {
     }
     return 512 + 2;
 }
-}
-private {
 i32 handle_certificate_verify(ptls_t* tls, ptls_iovec_t message, u8* context_string) {
     u8* src = message.base + 4;
     u8* end = message.base + message.len;
     u16 algo;
-    ptls_iovec_t signature;
-    u8[64 + sizeof("TLS 1.3, server CertificateVerify") + 64 * 2] signdata;
+    noinit ptls_iovec_t signature;
+    noinit u8[64 + sizeof("TLS 1.3, server CertificateVerify") + 64 * 2] signdata;
     u64 signdata_size;
     i32 ret;
     ret = ptls_decode16(&algo, &src, end);
@@ -9869,7 +9715,7 @@ i32 handle_certificate_verify(ptls_t* tls, ptls_iovec_t message, u8* context_str
             }
             if !(0 != 0) { break; }
         }
-                if !(0 != 0) { break; }
+        if !(0 != 0) { break; }
     }
     signdata_size = build_certificate_verify_signdata(signdata, tls.key_schedule, context_string);
     if tls.certificate_verify.cb != null {
@@ -9885,8 +9731,6 @@ i32 handle_certificate_verify(ptls_t* tls, ptls_iovec_t message, u8* context_str
     ptls__key_schedule_update_hash(tls.key_schedule, message.base, message.len, 0);
     return ret;
 }
-}
-private {
 i32 client_handle_certificate_verify(ptls_t* tls, ptls_iovec_t message) {
     i32 ret = handle_certificate_verify(tls, message, "TLS 1.3, server CertificateVerify");
     if ret == 0 {
@@ -9895,8 +9739,6 @@ i32 client_handle_certificate_verify(ptls_t* tls, ptls_iovec_t message) {
     }
     return ret;
 }
-}
-private {
 i32 server_handle_certificate_verify(ptls_t* tls, ptls_iovec_t message) {
     i32 ret = handle_certificate_verify(tls, message, "TLS 1.3, client CertificateVerify");
     if ret == 0 {
@@ -9905,8 +9747,6 @@ i32 server_handle_certificate_verify(ptls_t* tls, ptls_iovec_t message) {
     }
     return ret;
 }
-}
-private {
 i32 client_handle_finished(ptls_t* tls, ptls_message_emitter_t* emitter, ptls_iovec_t message) {
     u8[64] send_secret;
     defer {
@@ -10034,18 +9874,16 @@ i32 client_handle_finished(ptls_t* tls, ptls_message_emitter_t* emitter, ptls_io
     }
     return ret;
 }
-}
-private {
 i32 client_handle_new_session_ticket(ptls_t* tls, ptls_iovec_t message) {
     u8* src = message.base + 4;
     u8* end = message.base + message.len;
-    ptls_iovec_t ticket_nonce;
+    noinit ptls_iovec_t ticket_nonce;
     i32 ret;
     {
         u32 ticket_lifetime;
         u32 ticket_age_add;
         u32 max_early_data_size;
-        ptls_iovec_t ticket;
+        noinit ptls_iovec_t ticket;
         ret = decode_new_session_ticket(tls, &ticket_lifetime, &ticket_age_add, &ticket_nonce, &ticket, &max_early_data_size, src, end);
         if ret != 0 {
             return ret;
@@ -10054,7 +9892,7 @@ i32 client_handle_new_session_ticket(ptls_t* tls, ptls_iovec_t message) {
     if tls.ctx.save_ticket == null {
         return 0;
     }
-    ptls_buffer_t ticket_buf;
+    noinit ptls_buffer_t ticket_buf;
     ptls_buffer_init(&ticket_buf, "", 0);
     while true {
         u64 _v = tls.ctx.get_time.cb(tls.ctx.get_time);
@@ -10200,8 +10038,6 @@ i32 client_handle_new_session_ticket(ptls_t* tls, ptls_iovec_t message) {
     ptls_buffer_dispose(&ticket_buf);
     return ret;
 }
-}
-private {
 i32 client_hello_decode_server_name(ptls_iovec_t* name, u8** src, u8* end) {
     i32 ret = 0;
     while true {
@@ -10312,8 +10148,6 @@ i32 client_hello_decode_server_name(ptls_iovec_t* name, u8** src, u8* end) {
     }
     return ret;
 }
-}
-private {
 i32 select_negotiated_group(ptls_key_exchange_algorithm_t** selected, ptls_key_exchange_algorithm_t** candidates, u8* src, u8* end) {
     bool _keep = false;
     defer {
@@ -10387,12 +10221,11 @@ i32 select_negotiated_group(ptls_key_exchange_algorithm_t** selected, ptls_key_e
             }
             if !(0 != 0) { break; }
         }
-                if !(0 != 0) { break; }
+        if !(0 != 0) { break; }
     }
     ret = 40;
+    return ret;
 }
-}
-private {
 i32 decode_client_hello(ptls_context_t* ctx, st_ptls_client_hello_t* ch, u8* src, u8* end, ptls_handshake_properties_t* properties, ptls_t* tls_cbarg) {
     u8* start = src;
     u16 exttype = 0;
@@ -10764,7 +10597,7 @@ i32 decode_client_hello(ptls_context_t* ctx, st_ptls_client_hello_t* ch, u8* src
                                                                 }
                                                                 if !(0 != 0) { break; }
                                                             }
-                                                                                                                        if !(0 != 0) { break; }
+                                                            if !(0 != 0) { break; }
                                                         }
                                                     }
                                                     case 20: {
@@ -10831,7 +10664,7 @@ i32 decode_client_hello(ptls_context_t* ctx, st_ptls_client_hello_t* ch, u8* src
                                                                 }
                                                                 if !(0 != 0) { break; }
                                                             }
-                                                                                                                        if !(0 != 0) { break; }
+                                                            if !(0 != 0) { break; }
                                                         }
                                                     }
                                                     case 27: {
@@ -10897,7 +10730,7 @@ i32 decode_client_hello(ptls_context_t* ctx, st_ptls_client_hello_t* ch, u8* src
                                                                 }
                                                                 if !(0 != 0) { break; }
                                                             }
-                                                                                                                        if !(0 != 0) { break; }
+                                                            if !(0 != 0) { break; }
                                                         }
                                                     }
                                                     case 10: {
@@ -10983,7 +10816,7 @@ i32 decode_client_hello(ptls_context_t* ctx, st_ptls_client_hello_t* ch, u8* src
                                                                 }
                                                                 if !(0 != 0) { break; }
                                                             }
-                                                                                                                        if !(0 != 0) { break; }
+                                                            if !(0 != 0) { break; }
                                                         }
                                                     }
                                                     case 44: {
@@ -11185,7 +11018,7 @@ i32 decode_client_hello(ptls_context_t* ctx, st_ptls_client_hello_t* ch, u8* src
                                                                                     }
                                                                                     if !(0 != 0) { break; }
                                                                                 }
-                                                                                                                                                                if !(0 != 0) { break; }
+                                                                                if !(0 != 0) { break; }
                                                                             }
                                                                         }
                                                                         if !(0 != 0) { break; }
@@ -11205,7 +11038,7 @@ i32 decode_client_hello(ptls_context_t* ctx, st_ptls_client_hello_t* ch, u8* src
                                                                 }
                                                                 if !(0 != 0) { break; }
                                                             }
-                                                                                                                        if !(0 != 0) { break; }
+                                                            if !(0 != 0) { break; }
                                                         }
                                                     }
                                                     case 41: {
@@ -11423,7 +11256,7 @@ i32 decode_client_hello(ptls_context_t* ctx, st_ptls_client_hello_t* ch, u8* src
                                                                     }
                                                                     if !(0 != 0) { break; }
                                                                 }
-                                                                                                                                if !(0 != 0) { break; }
+                                                                if !(0 != 0) { break; }
                                                             }
                                                             ch.psk.is_last_extension = 1;
                                                         }
@@ -11491,7 +11324,7 @@ i32 decode_client_hello(ptls_context_t* ctx, st_ptls_client_hello_t* ch, u8* src
                                                                 }
                                                                 if !(0 != 0) { break; }
                                                             }
-                                                                                                                        if !(0 != 0) { break; }
+                                                            if !(0 != 0) { break; }
                                                         }
                                                     }
                                                     case 42: {
@@ -11675,13 +11508,11 @@ i32 decode_client_hello(ptls_context_t* ctx, st_ptls_client_hello_t* ch, u8* src
             }
             if !(0 != 0) { break; }
         }
-                if !(0 != 0) { break; }
+        if !(0 != 0) { break; }
     }
     ret = 0;
     return ret;
 }
-}
-private {
 i32 rebuild_ch_inner_extensions(ptls_buffer_t* buf, u8** src, u8* end, u8* outer_ext, u8* outer_ext_end) {
     i32 ret;
     while true {
@@ -11849,7 +11680,7 @@ i32 rebuild_ch_inner_extensions(ptls_buffer_t* buf, u8** src, u8* end, u8* outer
                                                                                     while true {
                                                                                         {
                                                                                             while true {
-                                                                                                ret = ptls_buffer__do_pushv(buf, outer_ext, outersize);
+                                                                                                ret = ptls_buffer__do_pushv(buf, outer_ext, cast(u64, outersize));
                                                                                                 if ret != 0 {
                                                                                                     return ret;
                                                                                                 }
@@ -11878,7 +11709,7 @@ i32 rebuild_ch_inner_extensions(ptls_buffer_t* buf, u8** src, u8* end, u8* outer
                                                                                 }
                                                                                 if !(0 != 0) { break; }
                                                                             }
-                                                                                                                                                        if !(*src != end) { break; }
+                                                                            if !(*src != end) { break; }
                                                                         }
                                                                     }
                                                                     if !(0 != 0) { break; }
@@ -11948,7 +11779,7 @@ i32 rebuild_ch_inner_extensions(ptls_buffer_t* buf, u8** src, u8* end, u8* outer
                                                             }
                                                             if !(0 != 0) { break; }
                                                         }
-                                                                                                            }
+                                                    }
                                                 }
                                                 if !(0 != 0) { break; }
                                             }
@@ -11994,8 +11825,6 @@ i32 rebuild_ch_inner_extensions(ptls_buffer_t* buf, u8** src, u8* end, u8* outer
     }
     return ret;
 }
-}
-private {
 i32 rebuild_ch_inner(ptls_buffer_t* buf, u8* src, u8* end, st_ptls_client_hello_t* outer_ch, u8* outer_ext, u8* outer_ext_end) {
     i32 ret;
     while true {
@@ -12350,10 +12179,8 @@ i32 rebuild_ch_inner(ptls_buffer_t* buf, u8* src, u8* end, st_ptls_client_hello_
     }
     return ret;
 }
-}
 /* Wrapper function for invoking the on_client_hello callback, taking an exhaustive list of parameters as arguments. The intention
  * is to not miss setting them as we add new parameters to the struct. */
-private {
 i32 call_on_client_hello_cb(ptls_t* tls, ptls_iovec_t server_name, ptls_iovec_t raw_message, ptls_iovec_t cipher_suites, ptls_iovec_t* alpns, u64 num_alpns, u16* sig_algos, u64 num_sig_algos, u16* cert_comp_algos, u64 num_cert_comp_algos, u8* server_cert_types, u64 num_server_cert_types, ptls_client_hello_psk_identity_t* psk_identities, u64 num_psk_identities, i32 incompatible_version) {
     if tls.ctx.on_client_hello == null {
         return 0;
@@ -12361,8 +12188,6 @@ i32 call_on_client_hello_cb(ptls_t* tls, ptls_iovec_t server_name, ptls_iovec_t 
     var params = ptls_on_client_hello_parameters_t{server_name, raw_message, cipher_suites, {alpns, num_alpns}, {sig_algos, num_sig_algos}, {cert_comp_algos, num_cert_comp_algos}, {server_cert_types, num_server_cert_types}, {psk_identities, num_psk_identities}, incompatible_version};
     return tls.ctx.on_client_hello.cb(tls.ctx.on_client_hello, tls, &params);
 }
-}
-private {
 i32 check_client_hello_constraints(ptls_context_t* ctx, st_ptls_client_hello_t* ch, void* prev_random, i32 ech_is_inner_ch, ptls_iovec_t raw_message, ptls_t* tls_cbarg) {
     i32 is_second_flight = prev_random != null;
     if is_second_flight && !ptls_mem_equal(ch.random_bytes, prev_random, 32) {
@@ -12404,28 +12229,24 @@ i32 check_client_hello_constraints(ptls_context_t* ctx, st_ptls_client_hello_t* 
     }
     return 0;
 }
-}
-private {
 i32 vec_is_string(ptls_iovec_t x, u8* y) {
     return strncmp(cast(u8*, x.base), y, x.len) == 0 && y[x.len] == 0;
-}
 }
 /**
  * Looks for a PSK identity that can be used, and if found, updates the handshake state and returns the necessary variables. If
  * `ptls_context_t::pre_shared_key` is set, only tries handshake using those keys provided. Otherwise, tries resumption.
  */
-private {
 i32 try_psk_handshake(ptls_t* tls, u64* psk_index, i32* accept_early_data, st_ptls_client_hello_t* ch, ptls_iovec_t ch_trunc, i32 is_second_flight) {
-    ptls_buffer_t decbuf;
-    ptls_iovec_t secret;
-    ptls_iovec_t ticket_ctx;
-    ptls_iovec_t ticket_negotiated_protocol;
+    noinit ptls_buffer_t decbuf;
+    noinit ptls_iovec_t secret;
+    noinit ptls_iovec_t ticket_ctx;
+    noinit ptls_iovec_t ticket_negotiated_protocol;
     u64 issue_at;
     u64 now = tls.ctx.get_time.cb(tls.ctx.get_time);
     u32 age_add;
     u16 ticket_key_exchange_id;
     u16 ticket_csid;
-    u8[64] binder_key;
+    noinit u8[64] binder_key;
     i32 ret;
     ptls_buffer_init(&decbuf, "", 0);
     for *psk_index = 0; *psk_index < ch.psk.identities.count; ++*psk_index {
@@ -12528,7 +12349,7 @@ i32 try_psk_handshake(ptls_t* tls, u64* psk_index, i32* accept_early_data, st_pt
         {
             ptls_key_exchange_algorithm_t** a;
             for a = tls.ctx.key_exchanges; *a != null && (*a).id != ticket_key_exchange_id; ++a {
-                            }
+            }
             if *a == null {
                 continue;
             }
@@ -12597,8 +12418,6 @@ i32 try_psk_handshake(ptls_t* tls, u64* psk_index, i32* accept_early_data, st_pt
         return ret;
     }
 }
-}
-private {
 i32 calc_cookie_signature(ptls_t* tls, ptls_handshake_properties_t* properties, ptls_key_exchange_algorithm_t* negotiated_group, ptls_iovec_t tbs, u8* sig) {
     ptls_hash_algorithm_t* algo = tls.ctx.cipher_suites[0].hash;
     ptls_hash_context_t* hctx;
@@ -12653,8 +12472,6 @@ i32 calc_cookie_signature(ptls_t* tls, ptls_handshake_properties_t* properties, 
     hctx.final(hctx, sig, PTLS_HASH_FINAL_MODE_FREE);
     return 0;
 }
-}
-private {
 i32 certificate_type_exists(u8* list, u64 count, u8 desired_type) {
     if desired_type == 0 && count == 0 {
         return 1;
@@ -12666,11 +12483,9 @@ i32 certificate_type_exists(u8* list, u64 count, u8 desired_type) {
     }
     return 0;
 }
-}
-private {
 i32 server_handle_hello(ptls_t* tls, ptls_message_emitter_t* emitter, ptls_iovec_t message, ptls_handshake_properties_t* properties) {
     st_ptls_client_hello_t* ch = null;
-    __anon_struct_46 ech;
+    __anon_picotls_struct_46 ech;
     ptls_iovec_t pubkey;
     ptls_iovec_t ecdh_secret;
     defer {
@@ -12684,14 +12499,14 @@ i32 server_handle_hello(ptls_t* tls, ptls_message_emitter_t* emitter, ptls_iovec
         ptls_buffer_dispose(&ech.ch_inner);
         free(ch);
     }
-    __anon_struct_45 key_share;
+    __anon_picotls_struct_45 key_share;
     i32 mode;
     u64 psk_index = SIZE_MAX;
     i32 accept_early_data = 0;
     i32 is_second_flight = tls.state == PTLS_STATE_SERVER_EXPECT_SECOND_CLIENT_HELLO;
     i32 ret;
     ptls_buffer_init(&ech.ch_inner, "", 0);
-    ch = malloc(cast(u64, sizeof(*ch)));
+    ch = alloc(cast(i64, sizeof(*ch)));
     if ch == null {
         ret = 512 + 1;
         return ret;
@@ -12735,7 +12550,7 @@ i32 server_handle_hello(ptls_t* tls, ptls_message_emitter_t* emitter, ptls_iovec
             }
         }
         if is_second_flight == 0 {
-                        while true {
+            while true {
                 u32 active = ptls_log_point_maybe_active(&server_handle_hello__logpoint);
                 if active == 0 {
                     break;
@@ -12746,12 +12561,12 @@ i32 server_handle_hello(ptls_t* tls, ptls_message_emitter_t* emitter, ptls_iovec
                 if active == 0 {
                     break;
                 }
-                                if !(0 != 0) { break; }
+                if !(0 != 0) { break; }
             }
         }
         if tls.ech.aead != null {
-            ech.encoded_ch_inner = malloc(ch.ech.payload.len - tls.ech.aead.algo.tag_size);
-            ech.ch_outer_aad = malloc(message.len - 4);
+            ech.encoded_ch_inner = alloc(cast(i64, ch.ech.payload.len - tls.ech.aead.algo.tag_size));
+            ech.ch_outer_aad = alloc(cast(i64, message.len - 4));
             if ech.encoded_ch_inner == null || ech.ch_outer_aad == null {
                 ret = 512 + 1;
                 return ret;
@@ -12900,13 +12715,13 @@ i32 server_handle_hello(ptls_t* tls, ptls_message_emitter_t* emitter, ptls_iovec
                 }
                 if !(0 != 0) { break; }
             }
-                        if !(0 != 0) { break; }
+            if !(0 != 0) { break; }
         }
     }
     if is_second_flight == 0 {
         if ch.cookie.all.len != 0 && key_share.algorithm != null {
             {
-                u8[64] sig;
+                noinit u8[64] sig;
                 u64 sigsize = tls.ctx.cipher_suites[0].hash.digest_size;
                 ret = calc_cookie_signature(tls, properties, key_share.algorithm, ch.cookie.tbs, sig);
                 if ret != 0 {
@@ -13113,7 +12928,7 @@ i32 server_handle_hello(ptls_t* tls, ptls_message_emitter_t* emitter, ptls_iovec
                                                     }
                                                     if !(0 != 0) { break; }
                                                 }
-                                                                                                while true {
+                                                while true {
                                                     {
                                                         ptls_key_exchange_algorithm_t* _negotiated_group = ch.cookie.sent_key_share != 0 ? key_share.algorithm : null;
                                                         if _negotiated_group != null {
@@ -13178,7 +12993,7 @@ i32 server_handle_hello(ptls_t* tls, ptls_message_emitter_t* emitter, ptls_iovec
                                                                 }
                                                                 if !(0 != 0) { break; }
                                                             }
-                                                                                                                    }
+                                                        }
                                                         while true {
                                                             {
                                                                 while true {
@@ -13236,7 +13051,7 @@ i32 server_handle_hello(ptls_t* tls, ptls_message_emitter_t* emitter, ptls_iovec
                                                                     }
                                                                     if !(0 != 0) { break; }
                                                                 }
-                                                                                                                            }
+                                                            }
                                                             if !(0 != 0) { break; }
                                                         }
                                                     }
@@ -13513,7 +13328,7 @@ i32 server_handle_hello(ptls_t* tls, ptls_message_emitter_t* emitter, ptls_iovec
                                                     }
                                                     if !(0 != 0) { break; }
                                                 }
-                                                                                                while true {
+                                                while true {
                                                     {
                                                         ptls_key_exchange_algorithm_t* _negotiated_group = key_share.algorithm != null ? null : negotiated_group;
                                                         if _negotiated_group != null {
@@ -13578,7 +13393,7 @@ i32 server_handle_hello(ptls_t* tls, ptls_message_emitter_t* emitter, ptls_iovec
                                                                 }
                                                                 if !(0 != 0) { break; }
                                                             }
-                                                                                                                    }
+                                                        }
                                                         while true {
                                                             {
                                                                 ptls_buffer_t* sendbuf = emitter.buf;
@@ -13638,7 +13453,7 @@ i32 server_handle_hello(ptls_t* tls, ptls_message_emitter_t* emitter, ptls_iovec
                                                                         }
                                                                         if !(0 != 0) { break; }
                                                                     }
-                                                                                                                                    }
+                                                                }
                                                                 if retry_uses_cookie != 0 {
                                                                     while true {
                                                                         while true {
@@ -13844,7 +13659,7 @@ i32 server_handle_hello(ptls_t* tls, ptls_message_emitter_t* emitter, ptls_iovec
                                                                         }
                                                                         if !(0 != 0) { break; }
                                                                     }
-                                                                                                                                    }
+                                                                }
                                                             }
                                                             if !(0 != 0) { break; }
                                                         }
@@ -13988,7 +13803,7 @@ i32 server_handle_hello(ptls_t* tls, ptls_message_emitter_t* emitter, ptls_iovec
         tls.server.num_tickets_to_send = 0;
     }
     if accept_early_data && tls.ctx.max_early_data_size != 0 && psk_index == 0 {
-        tls.pending_handshake_secret = malloc(cast(u64, 64));
+        tls.pending_handshake_secret = alloc(64);
         if tls.pending_handshake_secret == null {
             ret = 512 + 1;
             return ret;
@@ -14213,7 +14028,7 @@ i32 server_handle_hello(ptls_t* tls, ptls_message_emitter_t* emitter, ptls_iovec
                                                 }
                                                 if !(0 != 0) { break; }
                                             }
-                                                                                        while true {
+                                            while true {
                                                 {
                                                     ptls_buffer_t* sendbuf = emitter.buf;
                                                     if mode != HANDSHAKE_MODE_PSK {
@@ -14317,7 +14132,7 @@ i32 server_handle_hello(ptls_t* tls, ptls_message_emitter_t* emitter, ptls_iovec
                                                             }
                                                             if !(0 != 0) { break; }
                                                         }
-                                                                                                            }
+                                                    }
                                                     if mode != HANDSHAKE_MODE_FULL {
                                                         while true {
                                                             while true {
@@ -14380,7 +14195,7 @@ i32 server_handle_hello(ptls_t* tls, ptls_message_emitter_t* emitter, ptls_iovec
                                                             }
                                                             if !(0 != 0) { break; }
                                                         }
-                                                                                                            }
+                                                    }
                                                 }
                                                 if !(0 != 0) { break; }
                                             }
@@ -14574,7 +14389,7 @@ i32 server_handle_hello(ptls_t* tls, ptls_message_emitter_t* emitter, ptls_iovec
                                             }
                                             if !(0 != 0) { break; }
                                         }
-                                                                            }
+                                    }
                                     if tls.ctx.use_raw_public_keys != 0 {
                                         while true {
                                             while true {
@@ -14633,7 +14448,7 @@ i32 server_handle_hello(ptls_t* tls, ptls_message_emitter_t* emitter, ptls_iovec
                                             }
                                             if !(0 != 0) { break; }
                                         }
-                                                                            }
+                                    }
                                     if tls.negotiated_protocol != null {
                                         while true {
                                             while true {
@@ -14754,7 +14569,7 @@ i32 server_handle_hello(ptls_t* tls, ptls_message_emitter_t* emitter, ptls_iovec
                                             }
                                             if !(0 != 0) { break; }
                                         }
-                                                                            }
+                                    }
                                     if tls.pending_handshake_secret != null {
                                         while true {
                                             while true {
@@ -14805,7 +14620,7 @@ i32 server_handle_hello(ptls_t* tls, ptls_message_emitter_t* emitter, ptls_iovec
                                             if !(0 != 0) { break; }
                                         }
                                     }
-                                                                        if tls.ech.state == PTLS_ECH_STATE_OFFERED && tls.ctx.ech.server.create_opener != null && tls.ctx.ech.server.retry_configs.len != 0 {
+                                    if tls.ech.state == PTLS_ECH_STATE_OFFERED && tls.ctx.ech.server.create_opener != null && tls.ctx.ech.server.retry_configs.len != 0 {
                                         while true {
                                             while true {
                                                 u16 _v = 65037;
@@ -14862,7 +14677,7 @@ i32 server_handle_hello(ptls_t* tls, ptls_message_emitter_t* emitter, ptls_iovec
                                             if !(0 != 0) { break; }
                                         }
                                     }
-                                                                        if ch.ticket_request.new_session_count != 0 && tls.server.num_tickets_to_send != 0 {
+                                    if ch.ticket_request.new_session_count != 0 && tls.server.num_tickets_to_send != 0 {
                                         while true {
                                             while true {
                                                 u16 _v = 58;
@@ -14921,7 +14736,7 @@ i32 server_handle_hello(ptls_t* tls, ptls_message_emitter_t* emitter, ptls_iovec
                                             if !(0 != 0) { break; }
                                         }
                                     }
-                                                                        ret = push_additional_extensions(properties, sendbuf);
+                                    ret = push_additional_extensions(properties, sendbuf);
                                     if ret != 0 {
                                         return ret;
                                     }
@@ -15083,7 +14898,7 @@ i32 server_handle_hello(ptls_t* tls, ptls_message_emitter_t* emitter, ptls_iovec
                                                 }
                                                 if !(0 != 0) { break; }
                                             }
-                                                                                        if tls.ctx.client_ca_names.count > 0 {
+                                            if tls.ctx.client_ca_names.count > 0 {
                                                 while true {
                                                     while true {
                                                         u16 _v = 47;
@@ -15206,7 +15021,7 @@ i32 server_handle_hello(ptls_t* tls, ptls_message_emitter_t* emitter, ptls_iovec
                                                     }
                                                     if !(0 != 0) { break; }
                                                 }
-                                                                                            }
+                                            }
                                         }
                                         if !(0 != 0) { break; }
                                     }
@@ -15278,8 +15093,6 @@ i32 server_handle_hello(ptls_t* tls, ptls_message_emitter_t* emitter, ptls_iovec
     }
     return ret;
 }
-}
-private {
 i32 server_finish_handshake(ptls_t* tls, ptls_message_emitter_t* emitter, i32 send_cert_verify, st_ptls_signature_algorithms_t* signature_algorithms) {
     i32 ret;
     if send_cert_verify != 0 {
@@ -15343,8 +15156,6 @@ i32 server_finish_handshake(ptls_t* tls, ptls_message_emitter_t* emitter, i32 se
     }
     return ret;
 }
-}
-private {
 i32 server_handle_end_of_early_data(ptls_t* tls, ptls_iovec_t message) {
     i32 ret;
     ret = commission_handshake_secret(tls);
@@ -15356,8 +15167,6 @@ i32 server_handle_end_of_early_data(ptls_t* tls, ptls_iovec_t message) {
     ret = 512 + 2;
     return ret;
 }
-}
-private {
 i32 server_handle_finished(ptls_t* tls, ptls_iovec_t message) {
     i32 ret;
     ret = verify_finished(tls, message);
@@ -15374,8 +15183,6 @@ i32 server_handle_finished(ptls_t* tls, ptls_iovec_t message) {
     tls.state = PTLS_STATE_SERVER_POST_HANDSHAKE;
     return 0;
 }
-}
-private {
 i32 update_traffic_key(ptls_t* tls, i32 is_enc) {
     u8[64] secret;
     defer {
@@ -15392,8 +15199,6 @@ i32 update_traffic_key(ptls_t* tls, i32 is_enc) {
     ret = setup_traffic_protection(tls, is_enc, null, 3, 0, 1);
     return ret;
 }
-}
-private {
 i32 handle_key_update(ptls_t* tls, ptls_message_emitter_t* emitter, ptls_iovec_t message) {
     u8* src = message.base + 4;
     u8* end = message.base + message.len;
@@ -15413,8 +15218,6 @@ i32 handle_key_update(ptls_t* tls, ptls_message_emitter_t* emitter, ptls_iovec_t
     }
     return 0;
 }
-}
-private {
 i32 parse_record_header(st_ptls_record_t* rec, u8* src) {
     rec.type = src[0];
     rec.version = ntoh16(src + 1);
@@ -15424,8 +15227,6 @@ i32 parse_record_header(st_ptls_record_t* rec, u8* src) {
     }
     return 0;
 }
-}
-private {
 i32 parse_record(ptls_t* tls, st_ptls_record_t* rec, u8* src, u64* len) {
     i32 ret;
     assert(*len != 0);
@@ -15493,15 +15294,11 @@ i32 parse_record(ptls_t* tls, st_ptls_record_t* rec, u8* src, u64* len) {
     *len -= cast(u64, cast(i64, end - src));
     return ret;
 }
-}
-private {
 void update_open_count(ptls_context_t* ctx, i64 delta) {
     if ctx.update_open_count != null {
         ctx.update_open_count.cb(ctx.update_open_count, delta);
     }
 }
-}
-private {
 ptls_t* new_instance(ptls_context_t* ctx, i32 is_server) {
     ptls_t* tls;
     assert(ctx.get_time != null && "please set ctx->get_time to `&ptls_get_time`; see #92");
@@ -15510,7 +15307,7 @@ ptls_t* new_instance(ptls_context_t* ctx, i32 is_server) {
     } else {
         assert(ctx.pre_shared_key.identity.len == 0 && ctx.pre_shared_key.secret.base == null && ctx.pre_shared_key.secret.len == 0 && ctx.pre_shared_key.hash == null && "`ptls_context_t::pre_shared_key` in inconsitent state");
     }
-    tls = malloc(cast(u64, sizeof(*tls)));
+    tls = alloc(cast(i64, sizeof(*tls)));
     if tls == null {
         return null;
     }
@@ -15530,7 +15327,7 @@ ptls_t* ptls_client_new(ptls_context_t* ctx) {
         tls.client.legacy_session_id = ptls_iovec_init(tls.client.legacy_session_id_buf, cast(u64, sizeof(tls.client.legacy_session_id_buf)));
         tls.ctx.random_bytes(tls.client.legacy_session_id.base, tls.client.legacy_session_id.len);
     }
-        while true {
+    while true {
         u32 active = ptls_log_point_maybe_active(&ptls_client_new__logpoint);
         if active == 0 {
             break;
@@ -15541,7 +15338,7 @@ ptls_t* ptls_client_new(ptls_context_t* ctx) {
         if active == 0 {
             break;
         }
-                if !(0 != 0) { break; }
+        if !(0 != 0) { break; }
     }
     return tls;
 }
@@ -15549,7 +15346,7 @@ ptls_t* ptls_server_new(ptls_context_t* ctx) {
     ptls_t* tls = new_instance(ctx, 1);
     tls.state = PTLS_STATE_SERVER_EXPECT_CLIENT_HELLO;
     tls.server.early_data_skipped_bytes = UINT32_MAX;
-        while true {
+    while true {
         u32 active = ptls_log_point_maybe_active(&ptls_server_new__logpoint);
         if active == 0 {
             break;
@@ -15560,7 +15357,7 @@ ptls_t* ptls_server_new(ptls_context_t* ctx) {
         if active == 0 {
             break;
         }
-                if !(0 != 0) { break; }
+        if !(0 != 0) { break; }
     }
     return tls;
 }
@@ -15886,10 +15683,10 @@ i32 ptls_build_tls12_export_params(ptls_context_t* ctx, ptls_buffer_t* output, i
     if ret != 0 {
         return ret;
     }
-    __anon_struct_47 client_secret;
-    __anon_struct_47 server_secret;
-    __anon_struct_47* enc_secret = is_server != 0 ? &server_secret : &client_secret;
-    __anon_struct_47* dec_secret = is_server != 0 ? &client_secret : &server_secret;
+    noinit __anon_picotls_struct_47 client_secret;
+    noinit __anon_picotls_struct_47 server_secret;
+    __anon_picotls_struct_47* enc_secret = is_server != 0 ? &server_secret : &client_secret;
+    __anon_picotls_struct_47* dec_secret = is_server != 0 ? &client_secret : &server_secret;
     client_secret.key = key_block;
     server_secret.key = key_block + cipher.aead.key_size;
     client_secret.iv = key_block + cipher.aead.key_size * 2;
@@ -16212,8 +16009,6 @@ i32 import_tls12_traffic_protection(ptls_t* tls, i32 is_enc, u8** src, u8* end) 
     }
     return 0;
 }
-}
-private {
 i32 import_tls13_traffic_protection(ptls_t* tls, i32 is_enc, u8** src, u8* end) {
     st_ptls_traffic_protection_t* tp = is_enc != 0 ? &tls.traffic_protection.enc : &tls.traffic_protection.dec;
     memcpy(tp.secret, *src, tls.cipher_suite.hash.digest_size);
@@ -16545,13 +16340,13 @@ i32 ptls_import(ptls_context_t* ctx, ptls_t** tls, ptls_iovec_t params) {
             }
             if !(0 != 0) { break; }
         }
-                if !(0 != 0) { break; }
+        if !(0 != 0) { break; }
     }
     (*tls).state = ptls_is_server(*tls) != 0 ? PTLS_STATE_SERVER_POST_HANDSHAKE : PTLS_STATE_CLIENT_POST_HANDSHAKE;
     return ret;
 }
 void ptls_free(ptls_t* tls) {
-        while true {
+    while true {
         u32 active = ptls_log_point_maybe_active(&ptls_free__logpoint);
         if active == 0 {
             break;
@@ -16562,7 +16357,7 @@ void ptls_free(ptls_t* tls) {
         if active == 0 {
             break;
         }
-                if !(0 != 0) { break; }
+        if !(0 != 0) { break; }
     }
     ptls_buffer_dispose(&tls.recvbuf.rec);
     ptls_buffer_dispose(&tls.recvbuf.mess);
@@ -16764,7 +16559,7 @@ i32 handle_client_handshake_message(ptls_t* tls, ptls_message_emitter_t* emitter
             ret = 80;
         }
     }
-        while true {
+    while true {
         u32 active = ptls_log_point_maybe_active(&handle_client_handshake_message__logpoint);
         if active == 0 {
             break;
@@ -16775,12 +16570,10 @@ i32 handle_client_handshake_message(ptls_t* tls, ptls_message_emitter_t* emitter
         if active == 0 {
             break;
         }
-                if !(0 != 0) { break; }
+        if !(0 != 0) { break; }
     }
     return ret;
 }
-}
-private {
 i32 handle_server_handshake_message(ptls_t* tls, ptls_message_emitter_t* emitter, ptls_iovec_t message, i32 is_end_of_record, ptls_handshake_properties_t* properties) {
     u8 type = message.base[0];
     i32 ret;
@@ -16836,7 +16629,7 @@ i32 handle_server_handshake_message(ptls_t* tls, ptls_message_emitter_t* emitter
             ret = 80;
         }
     }
-        while true {
+    while true {
         u32 active = ptls_log_point_maybe_active(&handle_server_handshake_message__logpoint);
         if active == 0 {
             break;
@@ -16847,12 +16640,10 @@ i32 handle_server_handshake_message(ptls_t* tls, ptls_message_emitter_t* emitter
         if active == 0 {
             break;
         }
-                if !(0 != 0) { break; }
+        if !(0 != 0) { break; }
     }
     return ret;
 }
-}
-private {
 i32 handle_alert(ptls_t* tls, u8* src, u64 len) {
     if len != 2 {
         return 50;
@@ -16860,8 +16651,6 @@ i32 handle_alert(ptls_t* tls, u8* src, u64 len) {
     u8 desc = src[1];
     return cast(i32, desc) + 256;
 }
-}
-private {
 i32 message_buffer_is_overflow(ptls_context_t* ctx, u64 size) {
     if ctx.max_buffer_size == 0 {
         return 0;
@@ -16871,8 +16660,6 @@ i32 message_buffer_is_overflow(ptls_context_t* ctx, u64 size) {
     }
     return 1;
 }
-}
-private {
 i32 handle_handshake_record(ptls_t* tls, fn(ptls_t*, ptls_message_emitter_t*, ptls_iovec_t, i32, ptls_handshake_properties_t*): i32 cb, ptls_message_emitter_t* emitter, st_ptls_record_t* rec, ptls_handshake_properties_t* properties) {
     i32 ret;
     if rec.type != 22 {
@@ -16935,10 +16722,8 @@ i32 handle_handshake_record(ptls_t* tls, fn(ptls_t*, ptls_message_emitter_t*, pt
     }
     return ret;
 }
-}
-private {
 i32 handle_input(ptls_t* tls, ptls_message_emitter_t* emitter, ptls_buffer_t* decryptbuf, void* input, u64* inlen, ptls_handshake_properties_t* properties) {
-    st_ptls_record_t rec;
+    noinit st_ptls_record_t rec;
     i32 ret;
     ret = parse_record(tls, &rec, input, inlen);
     if ret != 0 {
@@ -17031,10 +16816,8 @@ i32 handle_input(ptls_t* tls, ptls_message_emitter_t* emitter, ptls_buffer_t* de
     ptls_buffer_dispose(&tls.recvbuf.rec);
     return ret;
 }
-}
-private {
 i32 handle_input_tls12(ptls_t* tls, ptls_buffer_t* decryptbuf, void* input, u64* inlen) {
-    st_ptls_record_t rec;
+    noinit st_ptls_record_t rec;
     i32 ret;
     ret = parse_record(tls, &rec, input, inlen);
     if ret != 0 {
@@ -17044,7 +16827,7 @@ i32 handle_input_tls12(ptls_t* tls, ptls_buffer_t* decryptbuf, void* input, u64*
     u8* src = rec.fragment;
     u8* end = src + rec.length;
     u64 nonce;
-    u8[13] aad;
+    noinit u8[13] aad;
     if tls.traffic_protection.dec.aead.algo.tls12.record_iv_size != 0 {
         assert(tls.traffic_protection.dec.aead.algo.tls12.record_iv_size == 8);
         ret = ptls_decode64(&nonce, &src, end);
@@ -17097,14 +16880,12 @@ i32 handle_input_tls12(ptls_t* tls, ptls_buffer_t* decryptbuf, void* input, u64*
     ptls_clear_memory(aad, sizeof(aad));
     return ret;
 }
-}
-private {
 void init_record_message_emitter(ptls_t* tls, st_ptls_record_message_emitter_t* emitter, ptls_buffer_t* sendbuf) {
     *emitter = st_ptls_record_message_emitter_t{.super = ptls_message_emitter_t{sendbuf, &tls.traffic_protection.enc, 5, begin_record_message, commit_record_message}};
 }
 }
 i32 ptls_handshake(ptls_t* tls, ptls_buffer_t* _sendbuf, void* input, u64* inlen, ptls_handshake_properties_t* properties) {
-    st_ptls_record_message_emitter_t emitter;
+    noinit st_ptls_record_message_emitter_t emitter;
     i32 ret;
     assert(tls.state < PTLS_STATE_POST_HANDSHAKE_MIN);
     init_record_message_emitter(tls, &emitter, _sendbuf);
@@ -17124,7 +16905,7 @@ i32 ptls_handshake(ptls_t* tls, ptls_buffer_t* _sendbuf, void* input, u64* inlen
     }
     u8* src = input;
     u8* src_end = src + *inlen;
-    ptls_buffer_t decryptbuf;
+    noinit ptls_buffer_t decryptbuf;
     ptls_buffer_init(&decryptbuf, "", 0);
     ret = 512 + 2;
     while ret == 512 + 2 && src != src_end {
@@ -17371,8 +17152,8 @@ i32 ptls_send_alert(ptls_t* tls, ptls_buffer_t* sendbuf, u8 level, u8 descriptio
 i32 ptls_export_secret(ptls_t* tls, void* output, u64 outlen, u8* label, ptls_iovec_t context_value, i32 is_early) {
     ptls_hash_algorithm_t* algo = (*(&tls.key_schedule.hashes[0] + 0)).algo;
     u8* master_secret = is_early != 0 ? tls.exporter_master_secret.early : tls.exporter_master_secret.one_rtt;
-    u8[64] derived_secret;
-    u8[64] context_value_hash;
+    noinit u8[64] derived_secret;
+    noinit u8[64] context_value_hash;
     i32 ret;
     if master_secret == null {
         if is_early != 0 {
@@ -17409,8 +17190,6 @@ void hmac_update(ptls_hash_context_t* _ctx, void* src, u64 len) {
     var ctx = cast(st_picotls_hmac_context_t*, _ctx);
     ctx.hash.update(ctx.hash, src, len);
 }
-}
-private {
 void hmac_apply_key(st_picotls_hmac_context_t* ctx, u8 pad) {
     u64 i;
     for i = 0; i != ctx.algo.block_size; ++i {
@@ -17421,8 +17200,6 @@ void hmac_apply_key(st_picotls_hmac_context_t* ctx, u8 pad) {
         *(&ctx.key[0] + i) ^= pad;
     }
 }
-}
-private {
 void hmac_final(ptls_hash_context_t* _ctx, void* md, ptls_hash_final_mode_t mode) {
     var ctx = cast(st_picotls_hmac_context_t*, _ctx);
     assert(mode != PTLS_HASH_FINAL_MODE_SNAPSHOT || !"not supported");
@@ -17459,7 +17236,7 @@ i32 ptls_calc_hash(ptls_hash_algorithm_t* algo, void* output, void* src, u64 len
 ptls_hash_context_t* ptls_hmac_create(ptls_hash_algorithm_t* algo, void* key, u64 key_size) {
     st_picotls_hmac_context_t* ctx;
     assert(key_size <= algo.block_size);
-    ctx = malloc(cast(u64, &cast(st_picotls_hmac_context_t*, 0).key) + algo.block_size);
+    ctx = alloc(cast(i64, cast(u64, &cast(st_picotls_hmac_context_t*, 0).key) + algo.block_size));
     if ctx == null {
         return null;
     }
@@ -17490,7 +17267,7 @@ i32 ptls_hkdf_extract(ptls_hash_algorithm_t* algo, void* output, ptls_iovec_t sa
 i32 ptls_hkdf_expand(ptls_hash_algorithm_t* algo, void* output, u64 outlen, ptls_iovec_t prk, ptls_iovec_t info) {
     ptls_hash_context_t* hmac = null;
     u64 i;
-    u8[64] digest;
+    noinit u8[64] digest;
     for i = 0; i * algo.digest_size < outlen; ++i {
         if hmac == null {
             hmac = ptls_hmac_create(algo, prk.base, prk.len);
@@ -17522,7 +17299,7 @@ i32 ptls_hkdf_expand_label(ptls_hash_algorithm_t* algo, void* output, u64 outlen
     defer {
         ptls_buffer_dispose(&hkdf_label);
     }
-    u8[80] hkdf_label_buf;
+    noinit u8[80] hkdf_label_buf;
     i32 ret;
     ptls_buffer_init(&hkdf_label, hkdf_label_buf, cast(u64, sizeof(hkdf_label_buf)));
     while true {
@@ -17631,7 +17408,7 @@ i32 ptls_hkdf_expand_label(ptls_hash_algorithm_t* algo, void* output, u64 outlen
 }
 i32 ptls_tls12_phash(ptls_hash_algorithm_t* algo, void* output, u64 outlen, ptls_iovec_t secret, u8* label, ptls_iovec_t seed) {
     ptls_hash_context_t* hmac;
-    u8[64] An;
+    noinit u8[64] An;
     u64 output_off = 0;
     hmac = ptls_hmac_create(algo, secret.base, secret.len);
     if hmac == null {
@@ -17663,7 +17440,7 @@ i32 ptls_tls12_phash(ptls_hash_algorithm_t* algo, void* output, u64 outlen, ptls
 }
 ptls_cipher_context_t* ptls_cipher_new(ptls_cipher_algorithm_t* algo, i32 is_enc, void* key) {
     ptls_cipher_context_t* ctx;
-    ctx = cast(ptls_cipher_context_t*, malloc(algo.context_size));
+    ctx = cast(ptls_cipher_context_t*, alloc(cast(i64, algo.context_size)));
     if ctx == null {
         return null;
     }
@@ -17679,7 +17456,7 @@ void ptls_cipher_free(ptls_cipher_context_t* ctx) {
     free(ctx);
 }
 ptls_aead_context_t* new_aead(ptls_aead_algorithm_t* aead, ptls_hash_algorithm_t* hash, i32 is_enc, void* secret, ptls_iovec_t hash_value, u8* label_prefix) {
-    __anon_struct_48 key_iv;
+    __anon_picotls_struct_48 key_iv;
     defer {
         ptls_clear_memory(&key_iv, sizeof(key_iv));
     }
@@ -17697,7 +17474,7 @@ ptls_aead_context_t* ptls_aead_new(ptls_aead_algorithm_t* aead, ptls_hash_algori
 }
 ptls_aead_context_t* ptls_aead_new_direct(ptls_aead_algorithm_t* aead, i32 is_enc, void* key, void* iv) {
     ptls_aead_context_t* ctx;
-    ctx = cast(ptls_aead_context_t*, malloc(aead.context_size));
+    ctx = cast(ptls_aead_context_t*, alloc(cast(i64, aead.context_size)));
     if ctx == null {
         return null;
     }
@@ -17714,7 +17491,7 @@ void ptls_aead_free(ptls_aead_context_t* ctx) {
 }
 void ptls_aead_xor_iv(ptls_aead_context_t* ctx, void* _bytes, u64 len) {
     u8* bytes = _bytes;
-    u8[32] iv;
+    noinit u8[32] iv;
     ptls_aead_get_iv(ctx, iv);
     for u64 i = 0; i < len; ++i {
         iv[i] ^= bytes[i];
@@ -17773,8 +17550,6 @@ i32 begin_raw_message(ptls_message_emitter_t* _self) {
     self.start_off = self.super.buf.off;
     return 0;
 }
-}
-private {
 i32 commit_raw_message(ptls_message_emitter_t* _self) {
     var self = cast(st_ptls_raw_message_emitter_t*, _self);
     u64 epoch;
@@ -18171,7 +17946,7 @@ void ptls_build_v4_mapped_v6_address(void* v6, void* v4) {
     memset(cast(u8*, v6) + 10, 255, cast(u64, 2));
     memcpy(cast(u8*, v6) + 12, v4, cast(u64, 4));
 }
-st_ptls_log_t ptls_log = st_ptls_log_t{.dummy_conn_state = {.random_ = 1}, ._generation = 1};
+st_ptls_log_t ptls_log = st_ptls_log_t{.dummy_conn_state = ptls_log_conn_state_t{.random_ = 1}, ._generation = 1};
 ptls_log_conn_state_t* ptls_log_conn_state_override = null;
 void ptls_log_init_conn_state(ptls_log_conn_state_t* state, fn(void*, u64): void random_bytes) {
     u32 r;
@@ -18218,76 +17993,56 @@ private {
 u32 rotr32(u32 x, u32 n) {
     return x >> n | x << 32 - n;
 }
-}
 /** Circularly rotate left x by n bits.
  *  0 > n > 32. */
-private {
 u32 rotl32(u32 x, u32 n) {
     return x << n | x >> 32 - n;
 }
-}
 /** Circularly rotate right x by n bits.
  *  0 > n > 64. */
-private {
 u64 rotr64(u64 x, u32 n) {
     return x >> n | x << 64 - n;
 }
-}
 /** Circularly rotate left x by n bits.
  *  0 > n > 64. */
-private {
 u64 rotl64(u64 x, u32 n) {
     return x << n | x >> 64 - n;
 }
-}
 /** Read 4 bytes from buf, as a 32-bit big endian quantity. */
-private {
 u32 read32_be(u8* buf) {
     return cast(u32, buf[0]) << 24 | cast(u32, buf[1]) << 16 | cast(u32, buf[2]) << 8 | cast(u32, buf[3]);
 }
-}
 /** Read 4 bytes from buf, as a 32-bit little endian quantity. */
-private {
 u32 read32_le(u8* buf) {
     return cast(u32, buf[3]) << 24 | cast(u32, buf[2]) << 16 | cast(u32, buf[1]) << 8 | cast(u32, buf[0]);
 }
-}
 /** Read 8 bytes from buf, as a 64-bit big endian quantity. */
-private {
 u64 read64_be(u8* buf) {
     u32 hi = read32_be(buf);
     u32 lo = read32_be(buf + 4);
     return cast(u64, hi) << 32 | lo;
 }
-}
 /** Read 8 bytes from buf, as a 64-bit little endian quantity. */
-private {
 u64 read64_le(u8* buf) {
     u32 hi = read32_le(buf + 4);
     u32 lo = read32_le(buf);
     return cast(u64, hi) << 32 | lo;
 }
-}
 /** Encode v as a 32-bit big endian quantity into buf. */
-private {
 void write32_be(u32 v, u8* buf) {
     *buf++ = cast(u8, v >> 24 & 255);
     *buf++ = cast(u8, v >> 16 & 255);
     *buf++ = cast(u8, v >> 8 & 255);
     *buf = cast(u8, v & 255);
 }
-}
 /** Encode v as a 32-bit little endian quantity into buf. */
-private {
 void write32_le(u32 v, u8* buf) {
     *buf++ = cast(u8, v & 255);
     *buf++ = cast(u8, v >> 8 & 255);
     *buf++ = cast(u8, v >> 16 & 255);
     *buf = cast(u8, v >> 24 & 255);
 }
-}
 /** Encode v as a 64-bit big endian quantity into buf. */
-private {
 void write64_be(u64 v, u8* buf) {
     *buf++ = cast(u8, v >> 56 & 255);
     *buf++ = cast(u8, v >> 48 & 255);
@@ -18298,9 +18053,7 @@ void write64_be(u64 v, u8* buf) {
     *buf++ = cast(u8, v >> 8 & 255);
     *buf = cast(u8, v & 255);
 }
-}
 /** Encode v as a 64-bit little endian quantity into buf. */
-private {
 void write64_le(u64 v, u8* buf) {
     *buf++ = cast(u8, v & 255);
     *buf++ = cast(u8, v >> 8 & 255);
@@ -18311,56 +18064,44 @@ void write64_le(u64 v, u8* buf) {
     *buf++ = cast(u8, v >> 48 & 255);
     *buf = cast(u8, v >> 56 & 255);
 }
-}
 /** out = in ^ b8.
  *  out and in may alias. */
-private {
 void xor_b8(u8* out, u8* in, u8 b8, u64 len) {
     u64 i;
     for i = 0; i < len; i++ {
         out[i] = in[i] ^ b8;
     }
 }
-}
 /** out = x ^ y.
  *  out, x and y may alias. */
-private {
 void xor_bb(u8* out, u8* x, u8* y, u64 len) {
     u64 i;
     for i = 0; i < len; i++ {
         out[i] = x[i] ^ y[i];
     }
 }
-}
 /* out ^= x
  * out and x may alias. */
-private {
 void xor_words(u32* out, u32* x, u64 nwords) {
     u64 i;
     for i = 0; i < nwords; i++ {
         out[i] ^= x[i];
     }
 }
-}
 /** Produce 0xffffffff if x == y, zero otherwise, without branching. */
-private {
 u32 mask_u32(u32 x, u32 y) {
     u32 diff = x ^ y;
     u32 diff_is_zero = ~diff & diff - 1;
     return cast(u32, -cast(i32, diff_is_zero >> 31));
 }
-}
 /** Product 0xff if x == y, zero otherwise, without branching. */
-private {
 u8 mask_u8(u32 x, u32 y) {
     u32 diff = x ^ y;
     var diff_is_zero = cast(u8, ~diff & diff - 1);
     return cast(u8, -(cast(i32, diff_is_zero) >> 7));
 }
-}
 /** Select the ith entry from the given table of n values, in a side channel-silent
  *  way. */
-private {
 u32 select_u32(u32 i, u32* tab, u32 n) {
     u32 r = 0;
     u32 ii;
@@ -18370,10 +18111,8 @@ u32 select_u32(u32 i, u32* tab, u32 n) {
     }
     return r;
 }
-}
 /** Select the ith entry from the given table of n values, in a side channel-silent
  *  way. */
-private {
 u8 select_u8(u32 i, u8* tab, u32 n) {
     u8 r = 0;
     u32 ii;
@@ -18383,10 +18122,8 @@ u8 select_u8(u32 i, u8* tab, u32 n) {
     }
     return r;
 }
-}
 /** Select the ath, bth, cth and dth entries from the given table of n values,
  *  placing the results into a, b, c and d. */
-private {
 void select_u8x4(u8* a, u8* b, u8* c, u8* d, u8* tab, u32 n) {
     u8 ra = 0;
     u8 rb = 0;
@@ -18410,9 +18147,7 @@ void select_u8x4(u8* a, u8* b, u8* c, u8* d, u8* tab, u32 n) {
     *c = rc;
     *d = rd;
 }
-}
 /** out ^= if0 or if1, depending on the value of bit. */
-private {
 void select_xor128(u32* out, u32* if0, u32* if1, u8 bit) {
     u32 mask1 = mask_u32(bit, 1);
     u32 mask0 = ~mask1;
@@ -18421,10 +18156,8 @@ void select_xor128(u32* out, u32* if0, u32* if1, u8 bit) {
     out[2] ^= if0[2] & mask0 | if1[2] & mask1;
     out[3] ^= if0[3] & mask0 | if1[3] & mask1;
 }
-}
 /** Increments the integer stored at v (of non-zero length len)
  *  with the least significant byte first. */
-private {
 void incr_le(u8* v, u64 len) {
     u64 i = 0;
     while 1 != 0 {
@@ -18437,10 +18170,8 @@ void incr_le(u8* v, u64 len) {
         }
     }
 }
-}
 /** Increments the integer stored at v (of non-zero length len)
  *  with the most significant byte last. */
-private {
 void incr_be(u8* v, u64 len) {
     len--;
     while 1 != 0 {
@@ -18453,10 +18184,8 @@ void incr_be(u8* v, u64 len) {
         len--;
     }
 }
-}
 /** Copies len bytes from in to out, with in shifted left by offset bits
  *  to the right. */
-private {
 void copy_bytes_unaligned(u8* out, u8* in, u64 len, u8 offset) {
     var byte_off = cast(u8, offset / 8);
     u8 bit_off = offset & 7;
@@ -18468,8 +18197,6 @@ void copy_bytes_unaligned(u8* out, u8* in, u64 len, u8 offset) {
         out[i] |= cast(u8, cast(u32, cast(i32, in[i + byte_off + 1])) >> 8 - bit_off & rmask);
     }
 }
-}
-private {
 u32 count_trailing_zeroes(u32 x) {
     when os(windows) {
         u32 r = 0;
@@ -18478,7 +18205,6 @@ u32 count_trailing_zeroes(u32 x) {
     } else {
         return cast(u32, __builtin_ctzl(x));
     }
-}
 }
 /*
  * Handy CPP defines and C inline functions.
@@ -18498,17 +18224,14 @@ u32 count_trailing_zeroes(u32 x) {
  *  x_err and 'error_type err'. */
 /** Like memset(ptr, 0, len), but not allowed to be removed by
  *  compilers. */
-private {
 void mem_clean(void* v, u64 len) {
     if len != 0 {
         memset(v, 0, len);
         ignore *cast(u8*, v);
     }
 }
-}
 /** Returns 1 if len bytes at va equal len bytes at vb, 0 if they do not.
  *  Does not leak length of common prefix through timing. */
-private {
 u32 mem_eq(void* va, void* vb, u64 len) {
     u8* a = va;
     u8* b = vb;
@@ -18567,7 +18290,7 @@ void cf_sha224_init(cf_sha256_context* ctx) {
 private {
 void sha256_update_block(void* vctx, u8* inp) {
     cf_sha256_context* ctx = vctx;
-    u32[16] W;
+    noinit u32[16] W;
     u32 a = ctx.H[0];
     u32 b = ctx.H[1];
     u32 c = ctx.H[2];
@@ -18625,7 +18348,7 @@ void cf_sha256_digest_final(cf_sha256_context* ctx, u8* hash) {
     u64 digested_bits = digested_bytes * 8;
     u64 padbytes = 64 - (digested_bytes + 8) % 64;
     cf_blockwise_acc_pad(ctx.partial, &ctx.npartial, cast(u64, sizeof(ctx.partial)), 128, 0, 0, padbytes, sha256_update_block, ctx);
-    u8[8] buf;
+    noinit u8[8] buf;
     write64_be(digested_bits, buf);
     cf_sha256_update(ctx, buf, 8);
     while true {
@@ -18645,12 +18368,12 @@ void cf_sha256_digest_final(cf_sha256_context* ctx, u8* hash) {
     memset(ctx, 0, cast(u64, sizeof(*ctx)));
 }
 void cf_sha224_digest(cf_sha256_context* ctx, u8* hash) {
-    u8[32] full;
+    noinit u8[32] full;
     cf_sha256_digest(ctx, full);
     memcpy(hash, full, cast(u64, 28));
 }
 void cf_sha224_digest_final(cf_sha256_context* ctx, u8* hash) {
-    u8[32] full;
+    noinit u8[32] full;
     cf_sha256_digest_final(ctx, full);
     memcpy(hash, full, cast(u64, 28));
 }
@@ -18747,7 +18470,7 @@ void cf_sha384_init(cf_sha512_context* ctx) {
 private {
 void sha512_update_block(void* vctx, u8* inp) {
     cf_sha512_context* ctx = vctx;
-    u64[16] W;
+    noinit u64[16] W;
     u64 a = ctx.H[0];
     u64 b = ctx.H[1];
     u64 c = ctx.H[2];
@@ -18805,7 +18528,7 @@ void cf_sha512_digest_final(cf_sha512_context* ctx, u8* hash) {
     u64 digested_bits = digested_bytes * 8;
     u64 padbytes = 128 - (digested_bytes + 16) % 128;
     cf_blockwise_acc_pad(ctx.partial, &ctx.npartial, cast(u64, sizeof(ctx.partial)), 128, 0, 0, padbytes, sha512_update_block, ctx);
-    u8[8] buf;
+    noinit u8[8] buf;
     write64_be(0, buf);
     cf_sha512_update(ctx, buf, 8);
     write64_be(digested_bits, buf);
@@ -18827,12 +18550,12 @@ void cf_sha512_digest_final(cf_sha512_context* ctx, u8* hash) {
     memset(ctx, 0, cast(u64, sizeof(*ctx)));
 }
 void cf_sha384_digest(cf_sha512_context* ctx, u8* hash) {
-    u8[64] full;
+    noinit u8[64] full;
     cf_sha512_digest(ctx, full);
     memcpy(hash, full, cast(u64, 48));
 }
 void cf_sha384_digest_final(cf_sha512_context* ctx, u8* hash) {
-    u8[64] full;
+    noinit u8[64] full;
     cf_sha512_digest_final(ctx, full);
     memcpy(hash, full, cast(u64, 48));
 }
@@ -18872,24 +18595,18 @@ private { u8[11] Rcon = {141, 1, 2, 4, 8, 16, 32, 64, 128, 27, 54}; }
 when defined(INLINE_FUNCS) {
 private {
 u32 word4(u8 b0, u8 b1, u8 b2, u8 b3) {
-        return cast(u32, cast(i32, b0) << 24 | cast(i32, b1) << 16 | cast(i32, b2) << 8 | b3);
-    }
+    return cast(u32, cast(i32, b0) << 24 | cast(i32, b1) << 16 | cast(i32, b2) << 8 | b3);
 }
-private {
 u8 byte(u32 w, u32 x) {
-        x = 3 - x;
-        return cast(u8, w >> x * 8 & 255);
-    }
+    x = 3 - x;
+    return cast(u8, w >> x * 8 & 255);
 }
-private {
 u32 round_constant(u32 i) {
-        return cast(u32, cast(i32, Rcon[i]) << 24);
-    }
+    return cast(u32, cast(i32, Rcon[i]) << 24);
 }
-private {
 u32 rot_word(u32 w) {
-        return rotl32(w, 8);
-    }
+    return rotl32(w, 8);
+}
 }
 }
 private {
@@ -18901,8 +18618,6 @@ u32 sub_word(u32 w, u8* sbox) {
     select_u8x4(&a, &b, &c, &d, sbox, 256);
     return cast(u32, a) << 24 | cast(u32, b) << 16 | cast(u32, c) << 8 | d;
 }
-}
-private {
 void aes_schedule(cf_aes_context* ctx, u8* key, u64 nkey) {
     u64 i;
     var nb = cast(u64, 16 / 4);
@@ -18957,16 +18672,12 @@ void add_round_key(u32* state, u32* rk) {
     state[2] ^= rk[2];
     state[3] ^= rk[3];
 }
-}
-private {
 void sub_block(u32* state) {
     state[0] = sub_word(state[0], S);
     state[1] = sub_word(state[1], S);
     state[2] = sub_word(state[2], S);
     state[3] = sub_word(state[3], S);
 }
-}
-private {
 void shift_rows(u32* state) {
     u32 u;
     u32 v;
@@ -18981,19 +18692,13 @@ void shift_rows(u32* state) {
     state[2] = x;
     state[3] = y;
 }
-}
-private {
 u32 gf_poly_mul2(u32 x) {
     return (x & 2139062143) << 1 ^ ((x & 2155905152) >> 7) * 27;
 }
-}
-private {
 u32 mix_column(u32 x) {
     u32 x2 = gf_poly_mul2(x);
     return x2 ^ rotr32(x ^ x2, 24) ^ rotr32(x, 16) ^ rotr32(x, 8);
 }
-}
-private {
 void mix_columns(u32* state) {
     state[0] = mix_column(state[0]);
     state[1] = mix_column(state[1]);
@@ -19036,8 +18741,6 @@ void inv_sub_block(u32* state) {
     state[2] = sub_word(state[2], S_inv);
     state[3] = sub_word(state[3], S_inv);
 }
-}
-private {
 void inv_shift_rows(u32* state) {
     u32 u;
     u32 v;
@@ -19052,8 +18755,6 @@ void inv_shift_rows(u32* state) {
     state[2] = x;
     state[3] = y;
 }
-}
-private {
 u32 inv_mix_column(u32 x) {
     u32 x2 = gf_poly_mul2(x);
     u32 x4 = gf_poly_mul2(x2);
@@ -19062,8 +18763,6 @@ u32 inv_mix_column(u32 x) {
     u32 x13 = x4 ^ x9;
     return x ^ x2 ^ x13 ^ rotr32(x11, 24) ^ rotr32(x13, 16) ^ rotr32(x9, 8);
 }
-}
-private {
 void inv_mix_columns(u32* state) {
     state[0] = inv_mix_column(state[0]);
     state[1] = inv_mix_column(state[1]);
@@ -19148,7 +18847,7 @@ void cf_cbc_init(cf_cbc* ctx, cf_prp* prp, void* prpctx, u8* iv) {
     memcpy(ctx.block, iv, prp.blocksz);
 }
 void cf_cbc_encrypt(cf_cbc* ctx, u8* input, u8* output, u64 blocks) {
-    u8[16] buf;
+    noinit u8[16] buf;
     u64 nblk = ctx.prp.blocksz;
     while blocks-- != 0 {
         xor_bb(buf, input, ctx.block, nblk);
@@ -19159,7 +18858,7 @@ void cf_cbc_encrypt(cf_cbc* ctx, u8* input, u8* output, u64 blocks) {
     }
 }
 void cf_cbc_decrypt(cf_cbc* ctx, u8* input, u8* output, u64 blocks) {
-    u8[16] buf;
+    noinit u8[16] buf;
     u64 nblk = ctx.prp.blocksz;
     while blocks-- != 0 {
         ctx.prp.decrypt(ctx.prpctx, input, buf);
@@ -19299,22 +18998,16 @@ void ghash_init(ghash_ctx* ctx, u8* H) {
     cf_gf128_frombytes_be(H, ctx.H);
     ctx.state = 1;
 }
-}
-private {
 void ghash_block(void* vctx, u8* data) {
     ghash_ctx* ctx = vctx;
-    cf_gf128 gfdata;
+    noinit cf_gf128 gfdata;
     cf_gf128_frombytes_be(data, gfdata);
     cf_gf128_add(gfdata, ctx.Y, ctx.Y);
     cf_gf128_mul(ctx.Y, ctx.H, ctx.Y);
 }
-}
-private {
 void ghash_add(ghash_ctx* ctx, u8* buf, u64 n) {
     cf_blockwise_accumulate(ctx.buffer, &ctx.buffer_used, cast(u64, sizeof(ctx.buffer)), buf, n, ghash_block, ctx);
 }
-}
-private {
 void ghash_add_pad(ghash_ctx* ctx) {
     if ctx.buffer_used == 0 {
         return;
@@ -19323,8 +19016,6 @@ void ghash_add_pad(ghash_ctx* ctx) {
     ghash_block(ctx, ctx.buffer);
     ctx.buffer_used = 0;
 }
-}
-private {
 void ghash_add_aad(ghash_ctx* ctx, u8* buf, u64 n) {
     while true {
         if ctx.state == 1 == 0 {
@@ -19335,8 +19026,6 @@ void ghash_add_aad(ghash_ctx* ctx, u8* buf, u64 n) {
     ctx.len_aad += n;
     ghash_add(ctx, buf, n);
 }
-}
-private {
 void ghash_add_cipher(ghash_ctx* ctx, u8* buf, u64 n) {
     if ctx.state == 1 {
         ghash_add_pad(ctx);
@@ -19351,10 +19040,8 @@ void ghash_add_cipher(ghash_ctx* ctx, u8* buf, u64 n) {
     ctx.len_cipher += n;
     ghash_add(ctx, buf, n);
 }
-}
-private {
 void ghash_final(ghash_ctx* ctx, u8* out) {
-    u8[8] lenbuf;
+    noinit u8[8] lenbuf;
     if ctx.state == 1 || ctx.state == 2 {
         ghash_add_pad(ctx);
         ctx.state = 0;
@@ -19412,7 +19099,7 @@ void cf_gcm_encrypt_final(cf_gcm_ctx* gcmctx, u8* tag, u64 ntag) {
     mem_clean(gcmctx, cast(u64, sizeof(*gcmctx)));
 }
 void cf_gcm_encrypt(cf_prp* prp, void* prpctx, u8* plain, u64 nplain, u8* header, u64 nheader, u8* nonce, u64 nnonce, u8* cipher, u8* tag, u64 ntag) {
-    cf_gcm_ctx gcmctx;
+    noinit cf_gcm_ctx gcmctx;
     cf_gcm_encrypt_init(prp, prpctx, &gcmctx, header, nheader, nonce, nnonce);
     cf_gcm_encrypt_update(&gcmctx, plain, nplain, cipher);
     cf_gcm_encrypt_final(&gcmctx, tag, ntag);
@@ -19440,7 +19127,7 @@ i32 cf_gcm_decrypt(cf_prp* prp, void* prpctx, u8* cipher, u64 ncipher, u8* heade
         Y0[12] = Y0[13];
         Y0[15] = 1;
     } else {
-        ghash_ctx gh;
+        noinit ghash_ctx gh;
         ghash_init(&gh, H);
         ghash_add_cipher(&gh, nonce, nnonce);
         ghash_final(&gh, Y0);
@@ -19579,8 +19266,8 @@ void cf_gf128_add(u32* x, u32* y, u32* out) {
 /* out = xy.  Arguments may alias. */
 void cf_gf128_mul(u32* x, u32* y, u32* out) {
     cf_gf128 zero;
-    cf_gf128 Z;
-    cf_gf128 V;
+    noinit cf_gf128 Z;
+    noinit cf_gf128 V;
     memset(Z, 0, cast(u64, sizeof(Z)));
     memcpy(V, y, cast(u64, sizeof(V)));
     i32 i;
@@ -19699,7 +19386,7 @@ void cf_chacha20_core(u8* key0, u8* key1, u8* nonce, u8* constant, u8* out) {
         zc = rotl32(zc ^ z0, 8);
         z8 += zc;
         z4 = rotl32(z4 ^ z8, 7);
-                z1 += z5;
+        z1 += z5;
         zd = rotl32(zd ^ z1, 16);
         z9 += zd;
         z5 = rotl32(z5 ^ z9, 12);
@@ -19707,7 +19394,7 @@ void cf_chacha20_core(u8* key0, u8* key1, u8* nonce, u8* constant, u8* out) {
         zd = rotl32(zd ^ z1, 8);
         z9 += zd;
         z5 = rotl32(z5 ^ z9, 7);
-                z2 += z6;
+        z2 += z6;
         ze = rotl32(ze ^ z2, 16);
         za += ze;
         z6 = rotl32(z6 ^ za, 12);
@@ -19715,7 +19402,7 @@ void cf_chacha20_core(u8* key0, u8* key1, u8* nonce, u8* constant, u8* out) {
         ze = rotl32(ze ^ z2, 8);
         za += ze;
         z6 = rotl32(z6 ^ za, 7);
-                z3 += z7;
+        z3 += z7;
         zf = rotl32(zf ^ z3, 16);
         zb += zf;
         z7 = rotl32(z7 ^ zb, 12);
@@ -19723,7 +19410,7 @@ void cf_chacha20_core(u8* key0, u8* key1, u8* nonce, u8* constant, u8* out) {
         zf = rotl32(zf ^ z3, 8);
         zb += zf;
         z7 = rotl32(z7 ^ zb, 7);
-                z0 += z5;
+        z0 += z5;
         zf = rotl32(zf ^ z0, 16);
         za += zf;
         z5 = rotl32(z5 ^ za, 12);
@@ -19731,7 +19418,7 @@ void cf_chacha20_core(u8* key0, u8* key1, u8* nonce, u8* constant, u8* out) {
         zf = rotl32(zf ^ z0, 8);
         za += zf;
         z5 = rotl32(z5 ^ za, 7);
-                z1 += z6;
+        z1 += z6;
         zc = rotl32(zc ^ z1, 16);
         zb += zc;
         z6 = rotl32(z6 ^ zb, 12);
@@ -19739,7 +19426,7 @@ void cf_chacha20_core(u8* key0, u8* key1, u8* nonce, u8* constant, u8* out) {
         zc = rotl32(zc ^ z1, 8);
         zb += zc;
         z6 = rotl32(z6 ^ zb, 7);
-                z2 += z7;
+        z2 += z7;
         zd = rotl32(zd ^ z2, 16);
         z8 += zd;
         z7 = rotl32(z7 ^ z8, 12);
@@ -19747,7 +19434,7 @@ void cf_chacha20_core(u8* key0, u8* key1, u8* nonce, u8* constant, u8* out) {
         zd = rotl32(zd ^ z2, 8);
         z8 += zd;
         z7 = rotl32(z7 ^ z8, 7);
-                z3 += z4;
+        z3 += z4;
         ze = rotl32(ze ^ z3, 16);
         z9 += ze;
         z4 = rotl32(z4 ^ z9, 12);
@@ -19755,7 +19442,7 @@ void cf_chacha20_core(u8* key0, u8* key1, u8* nonce, u8* constant, u8* out) {
         ze = rotl32(ze ^ z3, 8);
         z9 += ze;
         z4 = rotl32(z4 ^ z9, 7);
-            }
+    }
     x0 += z0;
     x1 += z1;
     x2 += z2;
@@ -19896,9 +19583,7 @@ void poly1305_add(u32* h, u32* x) {
         carry >>= 8;
     }
 }
-}
 /* Minimal reduction/carry chain. */
-private {
 void poly1305_min_reduce(u32* x) {
     u32 carry = 0;
     i32 i;
@@ -19917,12 +19602,10 @@ void poly1305_min_reduce(u32* x) {
     }
     x[16] += carry;
 }
-}
 /* This is - 2 ** 130 - 5 in twos complement. */
-private { u32[17] negative_1305 = {5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 252}; }
-private {
+u32[17] negative_1305 = {5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 252};
 void poly1305_full_reduce(u32* x) {
-    u32[17] xsub;
+    noinit u32[17] xsub;
     u64 i;
     for i = 0; i < 17; i++ {
         xsub[i] = x[i];
@@ -19934,10 +19617,8 @@ void poly1305_full_reduce(u32* x) {
         x[i] = x[i] & negative_mask | xsub[i] & positive_mask;
     }
 }
-}
-private {
 void poly1305_mul(u32* x, u32* y) {
-    u32[17] r;
+    noinit u32[17] r;
     i32 i;
     for i = 0; i < 17; i++ {
         u32 accum = 0;
@@ -19955,17 +19636,13 @@ void poly1305_mul(u32* x, u32* y) {
         x[i] = r[i];
     }
 }
-}
-private {
 void poly1305_block(cf_poly1305* ctx, u32* c) {
     poly1305_add(ctx.h, c);
     poly1305_mul(ctx.h, ctx.r);
 }
-}
-private {
 void poly1305_whole_block(void* vctx, u8* buf) {
     cf_poly1305* ctx = vctx;
-    u32[17] c;
+    noinit u32[17] c;
     i32 i;
     for i = 0; i < 16; i++ {
         c[i] = buf[i];
@@ -19973,8 +19650,6 @@ void poly1305_whole_block(void* vctx, u8* buf) {
     c[16] = 1;
     poly1305_block(ctx, c);
 }
-}
-private {
 void poly1305_last_block(cf_poly1305* ctx) {
     u32[17] c;
     u64 i;
@@ -19992,7 +19667,7 @@ void cf_poly1305_finish(cf_poly1305* ctx, u8* out) {
     if ctx.npartial != 0 {
         poly1305_last_block(ctx);
     }
-    u32[17] s;
+    noinit u32[17] s;
     u64 i;
     for i = 0; i < 16; i++ {
         s[i] = ctx.s[i];
@@ -20049,10 +19724,10 @@ i32 process(u8* key, u8* nonce, u8* header, u64 nheader, u8* input, u64 nbytes, 
     u8[16] fullnonce;
     memcpy(fullnonce + 4, nonce, cast(u64, 12));
     u8[32] polykey;
-    cf_chacha20_ctx chacha;
+    noinit cf_chacha20_ctx chacha;
     cf_chacha20_init_custom(&chacha, key, 32, fullnonce, 4);
     cf_chacha20_cipher(&chacha, polykey, polykey, cast(u64, sizeof(polykey)));
-    cf_poly1305 poly;
+    noinit cf_poly1305 poly;
     cf_poly1305_init(&poly, polykey, polykey + 16);
     mem_clean(polykey, cast(u64, sizeof(polykey)));
     cf_chacha20_cipher(&chacha, polykey, polykey, cast(u64, sizeof(polykey)));
@@ -20075,7 +19750,7 @@ i32 process(u8* key, u8* nonce, u8* header, u64 nheader, u8* input, u64 nbytes, 
         mem_clean(&chacha, cast(u64, sizeof(chacha)));
         return 0;
     }
-    u8[16] checktag;
+    noinit u8[16] checktag;
     cf_poly1305_finish(&poly, checktag);
     if mem_eq(checktag, tag, cast(u64, sizeof(checktag))) != 0 {
         cf_chacha20_cipher(&chacha, input, output, nbytes);
@@ -20094,7 +19769,7 @@ void cf_chacha20poly1305_encrypt(u8* key, u8* nonce, u8* header, u64 nheader, u8
     process(key, nonce, header, nheader, plaintext, nbytes, ciphertext, 1, tag);
 }
 i32 cf_chacha20poly1305_decrypt(u8* key, u8* nonce, u8* header, u64 nheader, u8* ciphertext, u64 nbytes, u8* tag, u8* plaintext) {
-    u8[16] ourtag;
+    noinit u8[16] ourtag;
     memcpy(ourtag, tag, cast(u64, sizeof(ourtag)));
     return process(key, nonce, header, nheader, ciphertext, nbytes, plaintext, 0, ourtag);
 }
@@ -20438,91 +20113,61 @@ private {
 u64 mc_gap(u64 x, u64 pow_2) {
     return ~x + 1 & pow_2 - 1;
 }
-}
-private {
 u32 mc_load24_le(u8* s) {
     return cast(u32, s[0]) << 0 | cast(u32, s[1]) << 8 | cast(u32, s[2]) << 16;
 }
-}
-private {
 u32 mc_load32_le(u8* s) {
     return cast(u32, s[0]) << 0 | cast(u32, s[1]) << 8 | cast(u32, s[2]) << 16 | cast(u32, s[3]) << 24;
 }
-}
-private {
 u64 mc_load64_le(u8* s) {
     return mc_load32_le(s) | cast(u64, mc_load32_le(s + 4)) << 32;
 }
-}
-private {
 void mc_store32_le(u8* out, u32 in) {
     out[0] = cast(u8, in & 255);
     out[1] = cast(u8, in >> 8 & 255);
     out[2] = cast(u8, in >> 16 & 255);
     out[3] = cast(u8, in >> 24 & 255);
 }
-}
-private {
 void mc_store64_le(u8* out, u64 in) {
     mc_store32_le(out, cast(u32, in));
     mc_store32_le(out + 4, cast(u32, in >> 32));
 }
-}
-private {
 void mc_load32_le_buf(u32* dst, u8* src, u64 size) {
     for u64 i = 0; i < size; i++ {
         dst[i] = mc_load32_le(src + i * 4);
     }
 }
-}
-private {
 void mc_load64_le_buf(u64* dst, u8* src, u64 size) {
     for u64 i = 0; i < size; i++ {
         dst[i] = mc_load64_le(src + i * 8);
     }
 }
-}
-private {
 void mc_store32_le_buf(u8* dst, u32* src, u64 size) {
     for u64 i = 0; i < size; i++ {
         mc_store32_le(dst + i * 4, src[i]);
     }
 }
-}
-private {
 void mc_store64_le_buf(u8* dst, u64* src, u64 size) {
     for u64 i = 0; i < size; i++ {
         mc_store64_le(dst + i * 8, src[i]);
     }
 }
-}
-private {
 u64 mc_rotr64(u64 x, u64 n) {
     return x >> n ^ x << 64 - n;
 }
-}
-private {
 u32 mc_rotl32(u32 x, u32 n) {
     return x << n ^ x >> 32 - n;
 }
-}
-private {
 i32 mc_neq0(u64 diff) {
     u64 half = diff >> 32 | cast(u32, diff);
     return cast(i32, (1 & half - 1 >> 32) - 1);
 }
-}
-private {
 u64 mc_x16(u8* a, u8* b) {
     return mc_load64_le(a + 0) ^ mc_load64_le(b + 0) | mc_load64_le(a + 8) ^ mc_load64_le(b + 8);
 }
-}
-private {
 u64 mc_x32(u8* a, u8* b) {
     return mc_x16(a, b) | mc_x16(a + 16, b + 16);
 }
-}
-private {
 u64 mc_x64(u8* a, u8* b) {
     return mc_x32(a, b) | mc_x32(a + 32, b + 32);
 }
@@ -20646,11 +20291,11 @@ void mc_chacha20_rounds(u32* out, u32* in) {
     out[14] = t14;
     out[15] = t15;
 }
+u8* mc_chacha20_constant = cast(u8*, "expand 32-byte k");
 }
-private { u8* mc_chacha20_constant = cast(u8*, "expand 32-byte k"); }
 // 16 bytes
 void crypto_chacha20_h(u8* out, u8* key, u8* in) {
-    u32[16] block;
+    noinit u32[16] block;
     mc_load32_le_buf(block, mc_chacha20_constant, 4);
     mc_load32_le_buf(block + 4, key, 8);
     mc_load32_le_buf(block + 12, in, 4);
@@ -20660,13 +20305,13 @@ void crypto_chacha20_h(u8* out, u8* key, u8* in) {
     crypto_wipe(block, cast(u64, sizeof(block)));
 }
 u64 crypto_chacha20_djb(u8* cipher_text, u8* plain_text, u64 text_size, u8* key, u8* nonce, u64 ctr) {
-    u32[16] input;
+    noinit u32[16] input;
     mc_load32_le_buf(input, mc_chacha20_constant, 4);
     mc_load32_le_buf(input + 4, key, 8);
     mc_load32_le_buf(input + 14, nonce, 2);
     input[12] = cast(u32, ctr);
     input[13] = cast(u32, ctr >> 32);
-    u32[16] pool;
+    noinit u32[16] pool;
     u64 nb_blocks = text_size >> 6;
     for u64 i = 0; i < nb_blocks; i++ {
         mc_chacha20_rounds(pool, input);
@@ -20695,7 +20340,7 @@ u64 crypto_chacha20_djb(u8* cipher_text, u8* plain_text, u64 text_size, u8* key,
             plain_text = mc_zero;
         }
         mc_chacha20_rounds(pool, input);
-        u8[64] tmp;
+        noinit u8[64] tmp;
         for u64 i = 0; i < 16; i++ {
             mc_store32_le(tmp + i * 4, pool[i] + input[i]);
         }
@@ -20704,7 +20349,7 @@ u64 crypto_chacha20_djb(u8* cipher_text, u8* plain_text, u64 text_size, u8* key,
         }
         crypto_wipe(tmp, cast(u64, sizeof(tmp)));
     }
-    ctr = input[12] + (cast(u64, input[13]) << 32) + cast(u64, text_size > 0);
+    ctr = input[12] + (cast(u64, input[13]) << 32) + cast(u64, cast(i32, text_size > 0));
     crypto_wipe(pool, cast(u64, sizeof(pool)));
     crypto_wipe(input, cast(u64, sizeof(input)));
     return ctr;
@@ -20714,7 +20359,7 @@ u32 crypto_chacha20_ietf(u8* cipher_text, u8* plain_text, u64 text_size, u8* key
     return cast(u32, crypto_chacha20_djb(cipher_text, plain_text, text_size, key, nonce + 4, big_ctr));
 }
 u64 crypto_chacha20_x(u8* cipher_text, u8* plain_text, u64 text_size, u8* key, u8* nonce, u64 ctr) {
-    u8[32] sub_key;
+    noinit u8[32] sub_key;
     crypto_chacha20_h(sub_key, key, nonce);
     ctr = crypto_chacha20_djb(cipher_text, plain_text, text_size, sub_key, nonce + 16, ctr);
     crypto_wipe(sub_key, cast(u64, sizeof(sub_key)));
@@ -20841,7 +20486,7 @@ void crypto_poly1305_final(crypto_poly1305_ctx* ctx, u8* mac) {
     crypto_wipe(ctx, cast(u64, sizeof(*ctx)));
 }
 void crypto_poly1305(u8* mac, u8* message, u64 message_size, u8* key) {
-    crypto_poly1305_ctx ctx;
+    noinit crypto_poly1305_ctx ctx;
     crypto_poly1305_init(&ctx, key);
     crypto_poly1305_update(&ctx, message, message_size);
     crypto_poly1305_final(&ctx, mac);
@@ -21812,7 +21457,7 @@ void crypto_blake2b_final(crypto_blake2b_ctx* ctx, u8* hash) {
     crypto_wipe(ctx, cast(u64, sizeof(*ctx)));
 }
 void crypto_blake2b_keyed(u8* hash, u64 hash_size, u8* key, u64 key_size, u8* message, u64 message_size) {
-    crypto_blake2b_ctx ctx;
+    noinit crypto_blake2b_ctx ctx;
     crypto_blake2b_keyed_init(&ctx, hash_size, key, key_size);
     crypto_blake2b_update(&ctx, message, message_size);
     crypto_blake2b_final(&ctx, hash);
@@ -21823,43 +21468,35 @@ void crypto_blake2b(u8* hash, u64 hash_size, u8* msg, u64 msg_size) {
 // updates a BLAKE2 hash with a 32 bit word, little endian.
 private {
 void mc_blake_update_32(crypto_blake2b_ctx* ctx, u32 input) {
-    u8[4] buf;
+    noinit u8[4] buf;
     mc_store32_le(buf, input);
     crypto_blake2b_update(ctx, buf, 4);
     crypto_wipe(buf, cast(u64, sizeof(buf)));
 }
-}
-private {
 void mc_blake_update_32_buf(crypto_blake2b_ctx* ctx, u8* buf, u32 size) {
     mc_blake_update_32(ctx, size);
-    crypto_blake2b_update(ctx, buf, size);
+    crypto_blake2b_update(ctx, buf, cast(u64, size));
 }
-}
-private {
 void mc_copy_block(blk* o, blk* in) {
     for u64 i = 0; i < 128; i++ {
         o.a[i] = in.a[i];
     }
 }
-}
-private {
 void mc_xor_block(blk* o, blk* in) {
     for u64 i = 0; i < 128; i++ {
         o.a[i] ^= in.a[i];
     }
-}
 }
 // Hash with a virtually unlimited digest size.
 // Doesn't extract more entropy than the base hash function.
 // Mainly used for filling a whole kilobyte block with pseudo-random bytes.
 // (One could use a stream cipher with a seed hash as the key, but
 //  this would introduce another dependency —and point of failure.)
-private {
 void mc_extended_hash(u8* digest, u32 digest_size, u8* input, u32 input_size) {
-    crypto_blake2b_ctx ctx;
-    crypto_blake2b_init(&ctx, digest_size <= 64 ? digest_size : 64);
+    noinit crypto_blake2b_ctx ctx;
+    crypto_blake2b_init(&ctx, cast(u64, digest_size <= 64 ? digest_size : 64));
     mc_blake_update_32(&ctx, digest_size);
-    crypto_blake2b_update(&ctx, input, input_size);
+    crypto_blake2b_update(&ctx, input, cast(u64, input_size));
     crypto_blake2b_final(&ctx, digest);
     if digest_size > 64 {
         u32 r = cast(u32, cast(u64, digest_size) + 31 >> 5) - 2;
@@ -21872,12 +21509,10 @@ void mc_extended_hash(u8* digest, u32 digest_size, u8* input, u32 input_size) {
             in += 32;
             out += 32;
         }
-        crypto_blake2b(digest + out, digest_size - 32 * r, digest + in, 64);
+        crypto_blake2b(digest + out, cast(u64, digest_size - 32 * r), digest + in, 64);
     }
 }
-}
 // Core of the compression function G.  Computes Z from R in place.
-private {
 void mc_g_rounds(blk* b) {
     for i32 i = 0; i < 128; i += 16 {
         b.a[i] += b.a[i + 4] + (cast(u64, cast(u32, b.a[i])) * cast(u64, cast(u32, b.a[i + 4])) << 1);
@@ -22084,8 +21719,8 @@ void crypto_argon2(u8* hash, u32 hash_size, void* work_area, crypto_argon2_confi
     u32 nb_blocks = lane_size * config.nb_lanes;
     var blocks = cast(blk*, work_area);
     {
-        u8[72] initial_hash;
-        crypto_blake2b_ctx ctx;
+        noinit u8[72] initial_hash;
+        noinit crypto_blake2b_ctx ctx;
         crypto_blake2b_init(&ctx, 64);
         mc_blake_update_32(&ctx, config.nb_lanes);
         mc_blake_update_32(&ctx, hash_size);
@@ -22098,7 +21733,7 @@ void crypto_argon2(u8* hash, u32 hash_size, void* work_area, crypto_argon2_confi
         mc_blake_update_32_buf(&ctx, extras.key, extras.key_size);
         mc_blake_update_32_buf(&ctx, extras.ad, extras.ad_size);
         crypto_blake2b_final(&ctx, initial_hash);
-        u8[1024] hash_area;
+        noinit u8[1024] hash_area;
         for u32 l = 0; l < config.nb_lanes; l++ {
             for u32 i = 0; i < 2; i++ {
                 mc_store32_le(initial_hash + 64, i);
@@ -22111,7 +21746,7 @@ void crypto_argon2(u8* hash, u32 hash_size, void* work_area, crypto_argon2_confi
         crypto_wipe(hash_area, cast(u64, sizeof(hash_area)));
     }
     i32 constant_time = config.algorithm != 0;
-    blk tmp;
+    noinit blk tmp;
     for u32 pass = 0; pass < config.nb_passes; pass++ {
         for u32 slice = 0; slice < 4; slice++ {
             var pass_offset = cast(u32, pass == 0 && slice == 0 ? 2 : 0);
@@ -22120,7 +21755,7 @@ void crypto_argon2(u8* hash, u32 hash_size, void* work_area, crypto_argon2_confi
                 constant_time = 0;
             }
             for u32 segment = 0; segment < config.nb_lanes; segment++ {
-                blk index_block;
+                noinit blk index_block;
                 u32 index_ctr = 1;
                 for u32 block = pass_offset; block < segment_size; block++ {
                     u32 lane_offset = segment * lane_size;
@@ -22187,7 +21822,7 @@ void crypto_argon2(u8* hash, u32 hash_size, void* work_area, crypto_argon2_confi
         mc_xor_block(next_block, last_block);
         last_block = next_block;
     }
-    u8[1024] final_block;
+    noinit u8[1024] final_block;
     mc_store64_le_buf(final_block, last_block.a, 128);
     p = cast(u64*, work_area);
     for u64 _i_ = 0; _i_ < 128 * nb_blocks; _i_++ {
@@ -22219,44 +21854,32 @@ void mc_fe_0(i32* h) {
         h[_i_] = 0;
     }
 }
-}
-private {
 void mc_fe_1(i32* h) {
     h[0] = 1;
     for u64 _i_ = 0; _i_ < 9; _i_++ {
         (h + 1)[_i_] = 0;
     }
 }
-}
-private {
 void mc_fe_copy(i32* h, i32* f) {
     for u64 i = 0; i < 10; i++ {
         h[i] = f[i];
     }
 }
-}
-private {
 void mc_fe_neg(i32* h, i32* f) {
     for u64 i = 0; i < 10; i++ {
         h[i] = -f[i];
     }
 }
-}
-private {
 void mc_fe_add(i32* h, i32* f, i32* g) {
     for u64 i = 0; i < 10; i++ {
         h[i] = f[i] + g[i];
     }
 }
-}
-private {
 void mc_fe_sub(i32* h, i32* f, i32* g) {
     for u64 i = 0; i < 10; i++ {
         h[i] = f[i] - g[i];
     }
 }
-}
-private {
 void mc_fe_cswap(i32* f, i32* g, i32 b) {
     i32 mask = -b;
     for u64 i = 0; i < 10; i++ {
@@ -22265,15 +21888,12 @@ void mc_fe_cswap(i32* f, i32* g, i32 b) {
         g[i] = g[i] ^ x;
     }
 }
-}
-private {
 void mc_fe_ccopy(i32* f, i32* g, i32 b) {
     i32 mask = -b;
     for u64 i = 0; i < 10; i++ {
         i32 x = (f[i] ^ g[i]) & mask;
         f[i] = f[i] ^ x;
     }
-}
 }
 // Signed carry propagation
 // ------------------------
@@ -22389,7 +22009,6 @@ void mc_fe_ccopy(i32* f, i32* g, i32 b) {
 // which uses that bit to denote the sign of x.
 // Elligator however uses positive representatives,
 // which means ignoring 2 bits instead.
-private {
 void mc_fe_frombytes_mask(i32* h, u8* s, u32 nb_mask) {
     u32 mask = 16777215 >> nb_mask;
     var t0 = cast(i64, mc_load32_le(s));
@@ -22450,11 +22069,8 @@ void mc_fe_frombytes_mask(i32* h, u8* s, u32 nb_mask) {
     h[8] = cast(i32, t8);
     h[9] = cast(i32, t9);
 }
-}
-private {
 void mc_fe_frombytes(i32* h, u8* s) {
     mc_fe_frombytes_mask(h, s, 1);
-}
 }
 // Precondition
 //   |h[0]|, |h[2]|, |h[4]|, |h[6]|, |h[8]|  <  1.1 * 2^25
@@ -22467,9 +22083,8 @@ void mc_fe_frombytes(i32* h, u8* s) {
 //   limbs down to their tight positive range.
 // - If h is negative, we also need to add 2^255-19 to it.
 //   Or just remove 19 and chop off any excess bit.
-private {
 void mc_fe_tobytes(u8* s, i32* h) {
-    i32[10] t;
+    noinit i32[10] t;
     for u64 _i_ = 0; _i_ < 10; _i_++ {
         t[_i_] = h[_i_];
     }
@@ -22499,7 +22114,6 @@ void mc_fe_tobytes(u8* s, i32* h) {
     mc_store32_le(s + 28, cast(u32, t[8]) >> 20 | cast(u32, t[9]) << 6);
     crypto_wipe(t, cast(u64, sizeof(t)));
 }
-}
 // Precondition
 // -------------
 //   |f0|, |f2|, |f4|, |f6|, |f8|  <  1.65 * 2^26
@@ -22507,7 +22121,6 @@ void mc_fe_tobytes(u8* s, i32* h) {
 //
 //   |g0|, |g2|, |g4|, |g6|, |g8|  <  1.65 * 2^26
 //   |g1|, |g3|, |g5|, |g7|, |g9|  <  1.65 * 2^25
-private {
 void mc_fe_mul_small(i32* h, i32* f, i32 g) {
     i64 t0 = f[0] * cast(i64, g);
     i64 t1 = f[1] * cast(i64, g);
@@ -22567,7 +22180,6 @@ void mc_fe_mul_small(i32* h, i32* f, i32 g) {
     h[8] = cast(i32, t8);
     h[9] = cast(i32, t9);
 }
-}
 // Precondition
 // -------------
 //   |f0|, |f2|, |f4|, |f6|, |f8|  <  1.65 * 2^26
@@ -22575,7 +22187,6 @@ void mc_fe_mul_small(i32* h, i32* f, i32 g) {
 //
 //   |g0|, |g2|, |g4|, |g6|, |g8|  <  1.65 * 2^26
 //   |g1|, |g3|, |g5|, |g7|, |g9|  <  1.65 * 2^25
-private {
 void mc_fe_mul(i32* h, i32* f, i32* g) {
     i32 f0 = f[0];
     i32 f1 = f[1];
@@ -22669,14 +22280,12 @@ void mc_fe_mul(i32* h, i32* f, i32* g) {
     h[8] = cast(i32, t8);
     h[9] = cast(i32, t9);
 }
-}
 // Precondition
 // -------------
 //   |f0|, |f2|, |f4|, |f6|, |f8|  <  1.65 * 2^26
 //   |f1|, |f3|, |f5|, |f7|, |f9|  <  1.65 * 2^25
 //
 // Note: we could use fe_mul() for this, but this is significantly faster
-private {
 void mc_fe_sq(i32* h, i32* f) {
     i32 f0 = f[0];
     i32 f1 = f[1];
@@ -22759,29 +22368,24 @@ void mc_fe_sq(i32* h, i32* f) {
     h[8] = cast(i32, t8);
     h[9] = cast(i32, t9);
 }
-}
 //  Parity check.  Returns 0 if even, 1 if odd
-private {
 i32 mc_fe_isodd(i32* f) {
-    u8[32] s;
+    noinit u8[32] s;
     mc_fe_tobytes(s, f);
     u8 isodd = s[0] & 1;
     crypto_wipe(s, cast(u64, sizeof(s)));
     return cast(i32, isodd);
 }
-}
 // Returns 1 if equal, 0 if not equal
-private {
 i32 mc_fe_isequal(i32* f, i32* g) {
-    u8[32] fs;
-    u8[32] gs;
+    noinit u8[32] fs;
+    noinit u8[32] gs;
     mc_fe_tobytes(fs, f);
     mc_fe_tobytes(gs, g);
     i32 isdifferent = crypto_verify32(fs, gs);
     crypto_wipe(fs, cast(u64, sizeof(fs)));
     crypto_wipe(gs, cast(u64, sizeof(gs)));
     return 1 + isdifferent;
-}
 }
 // Inverse square root.
 // Returns true if x is a square, false otherwise.
@@ -22840,11 +22444,10 @@ i32 mc_fe_isequal(i32* f, i32* g) {
 //      x^((p-5)/8) * sqrt(-1) = sqrt( sqrt(-1)/x) * sqrt(-1)^2
 //      x^((p-5)/8) * sqrt(-1) = sqrt( sqrt(-1)/x) * -1
 //      x^((p-5)/8) * sqrt(-1) = -sqrt(sqrt(-1)/x) or sqrt(sqrt(-1)/x)
-private {
 i32 mc_invsqrt(i32* isr, i32* x) {
-    fe t0;
-    fe t1;
-    fe t2;
+    noinit fe t0;
+    noinit fe t1;
+    noinit fe t2;
     mc_fe_sq(t0, x);
     mc_fe_sq(t1, t0);
     mc_fe_sq(t1, t1);
@@ -22911,7 +22514,6 @@ i32 mc_invsqrt(i32* isr, i32* x) {
     crypto_wipe(t2, cast(u64, sizeof(t2)));
     return p1 | m1 | z0;
 }
-}
 // Inverse in terms of inverse square root.
 // Requires two additional squarings to get rid of the sign.
 //
@@ -22920,9 +22522,8 @@ i32 mc_invsqrt(i32* isr, i32* x) {
 //
 // A fully optimised exponentiation by p-1 would save 6 field
 // multiplications, but it would require more code.
-private {
 void mc_fe_invert(i32* out, i32* x) {
-    fe tmp;
+    noinit fe tmp;
     mc_fe_sq(tmp, x);
     mc_invsqrt(tmp, tmp);
     mc_fe_sq(tmp, tmp);
@@ -22947,20 +22548,18 @@ i32 mc_scalar_bit(u8* s, i32 i) {
     }
     return cast(i32, s[i >> 3]) >> (i & 7) & 1;
 }
-}
 ///////////////
 /// X-25519 /// Taken from SUPERCOP's ref10 implementation.
 ///////////////
-private {
 void mc_scalarmult(u8* q, u8* scalar, u8* p, i32 nb_bits) {
-    fe x1;
+    noinit fe x1;
     mc_fe_frombytes(x1, p);
-    fe x2;
-    fe z2;
-    fe x3;
-    fe z3;
-    fe t0;
-    fe t1;
+    noinit fe x2;
+    noinit fe z2;
+    noinit fe x3;
+    noinit fe z3;
+    noinit fe t0;
+    noinit fe t1;
     mc_fe_1(x2);
     mc_fe_0(z2);
     mc_fe_copy(x3, x1);
@@ -23006,7 +22605,7 @@ void mc_scalarmult(u8* q, u8* scalar, u8* p, i32 nb_bits) {
 }
 }
 void crypto_x25519(u8* raw_shared_secret, u8* your_secret_key, u8* their_public_key) {
-    u8[32] e;
+    noinit u8[32] e;
     crypto_eddsa_trim_scalar(e, your_secret_key);
     mc_scalarmult(raw_shared_secret, e, their_public_key, 255);
     crypto_wipe(e, cast(u64, sizeof(e)));
@@ -23031,8 +22630,6 @@ void mc_multiply(u32* p, u32* a, u32* b) {
         p[i + 8] = cast(u32, carry);
     }
 }
-}
-private {
 i32 mc_is_above_l(u32* x) {
     u64 carry = 1;
     for u64 i = 0; i < 8; i++ {
@@ -23041,12 +22638,10 @@ i32 mc_is_above_l(u32* x) {
     }
     return cast(i32, carry);
 }
-}
 // Final reduction modulo L, by conditionally removing L.
 // if x < l     , then r = x
 // if l <= x 2*l, then r = x-l
 // otherwise the result will be wrong
-private {
 void mc_remove_l(u32* r, u32* x) {
     var carry = cast(u64, mc_is_above_l(x));
     u32 mask = ~cast(u32, carry) + 1;
@@ -23056,9 +22651,7 @@ void mc_remove_l(u32* r, u32* x) {
         carry >>= 32;
     }
 }
-}
 // Full reduction modulo L (Barrett reduction)
-private {
 void mc_mod_l(u8* reduced, u32* x) {
     u32[25] xr;
     for u64 i = 0; i < 9; i++ {
@@ -23093,18 +22686,18 @@ void mc_mod_l(u8* reduced, u32* x) {
 }
 }
 void crypto_eddsa_reduce(u8* reduced, u8* expanded) {
-    u32[16] x;
+    noinit u32[16] x;
     mc_load32_le_buf(x, expanded, 16);
     mc_mod_l(reduced, x);
     crypto_wipe(x, cast(u64, sizeof(x)));
 }
 // r = (a * b) + c
 void crypto_eddsa_mul_add(u8* r, u8* a, u8* b, u8* c) {
-    u32[8] mc_A;
+    noinit u32[8] mc_A;
     mc_load32_le_buf(mc_A, a, 8);
-    u32[8] B;
+    noinit u32[8] B;
     mc_load32_le_buf(B, b, 8);
-    u32[16] p;
+    noinit u32[16] p;
     mc_load32_le_buf(p, c, 8);
     for u64 _i_ = 0; _i_ < 8; _i_++ {
         (p + 8)[_i_] = 0;
@@ -23122,12 +22715,10 @@ void mc_ge_zero(ge* p) {
     mc_fe_1(p.Z);
     mc_fe_0(p.T);
 }
-}
-private {
 void mc_ge_tobytes(u8* s, ge* h) {
-    fe recip;
-    fe x;
-    fe y;
+    noinit fe recip;
+    noinit fe x;
+    noinit fe y;
     mc_fe_invert(recip, h.Z);
     mc_fe_mul(x, h.X, recip);
     mc_fe_mul(y, h.Y, recip);
@@ -23136,7 +22727,6 @@ void mc_ge_tobytes(u8* s, ge* h) {
     crypto_wipe(recip, cast(u64, sizeof(recip)));
     crypto_wipe(x, cast(u64, sizeof(x)));
     crypto_wipe(y, cast(u64, sizeof(y)));
-}
 }
 // h = -s, where s is a point encoded in 32 bytes
 //
@@ -23165,7 +22755,6 @@ void mc_ge_tobytes(u8* s, ge* h) {
 //   isr = invsqrt(num * den)  // abort if not square
 //   x   = num * isr
 // Finally, negate x if its sign is not as specified.
-private {
 i32 mc_ge_frombytes_neg_vartime(ge* h, u8* s) {
     mc_fe_frombytes(h.Y, s);
     mc_fe_1(h.Z);
@@ -23185,21 +22774,17 @@ i32 mc_ge_frombytes_neg_vartime(ge* h, u8* s) {
     mc_fe_mul(h.T, h.X, h.Y);
     return 0;
 }
-}
-private {
 void mc_ge_cache(ge_cached* c, ge* p) {
     mc_fe_add(c.Yp, p.Y, p.X);
     mc_fe_sub(c.Ym, p.Y, p.X);
     mc_fe_copy(c.Z, p.Z);
     mc_fe_mul(c.T2, p.T, mc_D2);
 }
-}
 // Internal buffers are not wiped! Inputs must not be secret!
 // => Use only to *check* signatures.
-private {
 void mc_ge_add(ge* s, ge* p, ge_cached* q) {
-    fe a;
-    fe b;
+    noinit fe a;
+    noinit fe b;
     mc_fe_add(a, p.Y, p.X);
     mc_fe_sub(b, p.Y, p.X);
     mc_fe_mul(a, a, q.Yp);
@@ -23216,20 +22801,16 @@ void mc_ge_add(ge* s, ge* p, ge_cached* q) {
     mc_fe_mul(s.Y, s.Y, a);
     mc_fe_mul(s.Z, a, b);
 }
-}
 // Internal buffers are not wiped! Inputs must not be secret!
 // => Use only to *check* signatures.
-private {
 void mc_ge_sub(ge* s, ge* p, ge_cached* q) {
-    ge_cached neg;
+    noinit ge_cached neg;
     mc_fe_copy(neg.Ym, q.Yp);
     mc_fe_copy(neg.Yp, q.Ym);
     mc_fe_copy(neg.Z, q.Z);
     mc_fe_neg(neg.T2, q.T2);
     mc_ge_add(s, p, &neg);
 }
-}
-private {
 void mc_ge_madd(ge* s, ge* p, ge_precomp* q, i32* a, i32* b) {
     mc_fe_add(a, p.Y, p.X);
     mc_fe_sub(b, p.Y, p.X);
@@ -23246,19 +22827,15 @@ void mc_ge_madd(ge* s, ge* p, ge_precomp* q, i32* a, i32* b) {
     mc_fe_mul(s.Y, s.Y, a);
     mc_fe_mul(s.Z, a, b);
 }
-}
 // Internal buffers are not wiped! Inputs must not be secret!
 // => Use only to *check* signatures.
-private {
 void mc_ge_msub(ge* s, ge* p, ge_precomp* q, i32* a, i32* b) {
-    ge_precomp neg;
+    noinit ge_precomp neg;
     mc_fe_copy(neg.Ym, q.Yp);
     mc_fe_copy(neg.Yp, q.Ym);
     mc_fe_neg(neg.T2, q.T2);
     mc_ge_madd(s, p, &neg, a, b);
 }
-}
-private {
 void mc_ge_double(ge* s, ge* p, ge* q) {
     mc_fe_sq(q.X, p.X);
     mc_fe_sq(q.Y, p.Y);
@@ -23275,10 +22852,8 @@ void mc_ge_double(ge* s, ge* p, ge* q) {
     mc_fe_mul(s.Z, q.Y, q.Z);
     mc_fe_mul(s.T, q.X, q.T);
 }
-}
 // 5-bit signed window in cached format (Niels coordinates, Z=1)
-private { ge_precomp[8] mc_b_window = {ge_precomp{fe{25967493, -14356035, 29566456, 3660896, -12694345, 4014787, 27544626, -11754271, -6079156, 2047605}, fe{-12545711, 934262, -2722910, 3049990, -727428, 9406986, 12720692, 5043384, 19500929, -15469378}, fe{-8738181, 4489570, 9688441, -14785194, 10184609, -12363380, 29287919, 11864899, -24514362, -4438546}}, ge_precomp{fe{15636291, -9688557, 24204773, -7912398, 616977, -16685262, 27787600, -14772189, 28944400, -1550024}, fe{16568933, 4717097, -11556148, -1102322, 15682896, -11807043, 16354577, -11775962, 7689662, 11199574}, fe{30464156, -5976125, -11779434, -15670865, 23220365, 15915852, 7512774, 10017326, -17749093, -9920357}}, ge_precomp{fe{10861363, 11473154, 27284546, 1981175, -30064349, 12577861, 32867885, 14515107, -15438304, 10819380}, fe{4708026, 6336745, 20377586, 9066809, -11272109, 6594696, -25653668, 12483688, -12668491, 5581306}, fe{19563160, 16186464, -29386857, 4097519, 10237984, -4348115, 28542350, 13850243, -23678021, -15815942}}, ge_precomp{fe{5153746, 9909285, 1723747, -2777874, 30523605, 5516873, 19480852, 5230134, -23952439, -15175766}, fe{-30269007, -3463509, 7665486, 10083793, 28475525, 1649722, 20654025, 16520125, 30598449, 7715701}, fe{28881845, 14381568, 9657904, 3680757, -20181635, 7843316, -31400660, 1370708, 29794553, -1409300}}, ge_precomp{fe{-22518993, -6692182, 14201702, -8745502, -23510406, 8844726, 18474211, -1361450, -13062696, 13821877}, fe{-6455177, -7839871, 3374702, -4740862, -27098617, -10571707, 31655028, -7212327, 18853322, -14220951}, fe{4566830, -12963868, -28974889, -12240689, -7602672, -2830569, -8514358, -10431137, 2207753, -3209784}}, ge_precomp{fe{-25154831, -4185821, 29681144, 7868801, -6854661, -9423865, -12437364, -663000, -31111463, -16132436}, fe{25576264, -2703214, 7349804, -11814844, 16472782, 9300885, 3844789, 15725684, 171356, 6466918}, fe{23103977, 13316479, 9739013, -16149481, 817875, -15038942, 8965339, -14088058, -30714912, 16193877}}, ge_precomp{fe{-33521811, 3180713, -2394130, 14003687, -16903474, -16270840, 17238398, 4729455, -18074513, 9256800}, fe{-25182317, -4174131, 32336398, 5036987, -21236817, 11360617, 22616405, 9761698, -19827198, 630305}, fe{-13720693, 2639453, -24237460, -7406481, 9494427, -5774029, -6554551, -15960994, -2449256, -14291300}}, ge_precomp{fe{-3151181, -5046075, 9282714, 6866145, -31907062, -863023, -18940575, 15033784, 25105118, -7894876}, fe{-24326370, 15950226, -31801215, -14592823, -11662737, -5090925, 1573892, -2625887, 2198790, -15804619}, fe{-3099351, 10324967, -2241613, 7453183, -5446979, -2735503, -13812022, -16236442, -32461234, -12290683}}}; }
-private {
+ge_precomp[8] mc_b_window = {ge_precomp{fe{25967493, -14356035, 29566456, 3660896, -12694345, 4014787, 27544626, -11754271, -6079156, 2047605}, fe{-12545711, 934262, -2722910, 3049990, -727428, 9406986, 12720692, 5043384, 19500929, -15469378}, fe{-8738181, 4489570, 9688441, -14785194, 10184609, -12363380, 29287919, 11864899, -24514362, -4438546}}, ge_precomp{fe{15636291, -9688557, 24204773, -7912398, 616977, -16685262, 27787600, -14772189, 28944400, -1550024}, fe{16568933, 4717097, -11556148, -1102322, 15682896, -11807043, 16354577, -11775962, 7689662, 11199574}, fe{30464156, -5976125, -11779434, -15670865, 23220365, 15915852, 7512774, 10017326, -17749093, -9920357}}, ge_precomp{fe{10861363, 11473154, 27284546, 1981175, -30064349, 12577861, 32867885, 14515107, -15438304, 10819380}, fe{4708026, 6336745, 20377586, 9066809, -11272109, 6594696, -25653668, 12483688, -12668491, 5581306}, fe{19563160, 16186464, -29386857, 4097519, 10237984, -4348115, 28542350, 13850243, -23678021, -15815942}}, ge_precomp{fe{5153746, 9909285, 1723747, -2777874, 30523605, 5516873, 19480852, 5230134, -23952439, -15175766}, fe{-30269007, -3463509, 7665486, 10083793, 28475525, 1649722, 20654025, 16520125, 30598449, 7715701}, fe{28881845, 14381568, 9657904, 3680757, -20181635, 7843316, -31400660, 1370708, 29794553, -1409300}}, ge_precomp{fe{-22518993, -6692182, 14201702, -8745502, -23510406, 8844726, 18474211, -1361450, -13062696, 13821877}, fe{-6455177, -7839871, 3374702, -4740862, -27098617, -10571707, 31655028, -7212327, 18853322, -14220951}, fe{4566830, -12963868, -28974889, -12240689, -7602672, -2830569, -8514358, -10431137, 2207753, -3209784}}, ge_precomp{fe{-25154831, -4185821, 29681144, 7868801, -6854661, -9423865, -12437364, -663000, -31111463, -16132436}, fe{25576264, -2703214, 7349804, -11814844, 16472782, 9300885, 3844789, 15725684, 171356, 6466918}, fe{23103977, 13316479, 9739013, -16149481, 817875, -15038942, 8965339, -14088058, -30714912, 16193877}}, ge_precomp{fe{-33521811, 3180713, -2394130, 14003687, -16903474, -16270840, 17238398, 4729455, -18074513, 9256800}, fe{-25182317, -4174131, 32336398, 5036987, -21236817, 11360617, 22616405, 9761698, -19827198, 630305}, fe{-13720693, 2639453, -24237460, -7406481, 9494427, -5774029, -6554551, -15960994, -2449256, -14291300}}, ge_precomp{fe{-3151181, -5046075, 9282714, 6866145, -31907062, -863023, -18940575, 15033784, 25105118, -7894876}, fe{-24326370, 15950226, -31801215, -14592823, -11662737, -5090925, 1573892, -2625887, 2198790, -15804619}, fe{-3099351, 10324967, -2241613, 7453183, -5446979, -2735503, -13812022, -16236442, -32461234, -12290683}}};
 void mc_slide_init(slide_ctx* ctx, u8* scalar) {
     i32 i = 252;
     while i > 0 && mc_scalar_bit(scalar, i) == 0 {
@@ -23288,8 +22863,6 @@ void mc_slide_init(slide_ctx* ctx, u8* scalar) {
     ctx.next_index = cast(i16, -1);
     ctx.next_digit = cast(i8, -1);
 }
-}
-private {
 i32 mc_slide_step(slide_ctx* ctx, i32 width, i32 i, u8* scalar) {
     if i == cast(i32, ctx.next_check) {
         if mc_scalar_bit(scalar, i) == mc_scalar_bit(scalar, i - 1) {
@@ -23312,20 +22885,20 @@ i32 mc_slide_step(slide_ctx* ctx, i32 width, i32 i, u8* scalar) {
 }
 }
 i32 crypto_eddsa_check_equation(u8* signature, u8* public_key, u8* h) {
-    ge minus_A;
-    ge minus_R;
+    noinit ge minus_A;
+    noinit ge minus_R;
     u8* s = signature + 32;
     {
-        u32[8] s32;
+        noinit u32[8] s32;
         mc_load32_le_buf(s32, s, 8);
         if mc_ge_frombytes_neg_vartime(&minus_A, public_key) || mc_ge_frombytes_neg_vartime(&minus_R, signature) || mc_is_above_l(s32) {
             return -1;
         }
     }
-    ge_cached[2] lutA;
+    noinit ge_cached[2] lutA;
     {
-        ge minus_A2;
-        ge tmp;
+        noinit ge minus_A2;
+        noinit ge tmp;
         mc_ge_double(&minus_A2, &minus_A, &tmp);
         mc_ge_cache(&lutA[0], &minus_A);
         for u64 i = 1; i < cast(u64, 1 << 3 - 2); i++ {
@@ -23333,15 +22906,15 @@ i32 crypto_eddsa_check_equation(u8* signature, u8* public_key, u8* h) {
             mc_ge_cache(&lutA[i], &tmp);
         }
     }
-    slide_ctx h_slide;
+    noinit slide_ctx h_slide;
     mc_slide_init(&h_slide, h);
-    slide_ctx s_slide;
+    noinit slide_ctx s_slide;
     mc_slide_init(&s_slide, s);
     var i = cast(i32, h_slide.next_check >= s_slide.next_check ? h_slide.next_check : s_slide.next_check);
     ge* sum = &minus_A;
     mc_ge_zero(sum);
     while i >= 0 {
-        ge tmp;
+        noinit ge tmp;
         mc_ge_double(sum, sum, &tmp);
         i32 h_digit = mc_slide_step(&h_slide, 3, i, h);
         i32 s_digit = mc_slide_step(&s_slide, 5, i, s);
@@ -23351,8 +22924,8 @@ i32 crypto_eddsa_check_equation(u8* signature, u8* public_key, u8* h) {
         if h_digit < 0 {
             mc_ge_sub(sum, sum, &lutA[-h_digit / 2]);
         }
-        fe t1;
-        fe t2;
+        noinit fe t1;
+        noinit fe t2;
         if s_digit > 0 {
             mc_ge_madd(sum, sum, mc_b_window + s_digit / 2, t1, t2);
         }
@@ -23361,8 +22934,8 @@ i32 crypto_eddsa_check_equation(u8* signature, u8* public_key, u8* h) {
         }
         i--;
     }
-    ge_cached cached;
-    u8[32] check;
+    noinit ge_cached cached;
+    noinit u8[32] check;
     mc_ge_cache(&cached, &minus_R);
     mc_ge_add(sum, sum, &cached);
     mc_ge_double(sum, sum, &minus_R);
@@ -23390,16 +22963,14 @@ void mc_lookup_add(ge* p, ge_precomp* tmp_c, i32* tmp_a, i32* tmp_b, ge_precomp*
     mc_fe_cswap(tmp_c.Yp, tmp_c.Ym, cast(i32, high ^ 1));
     mc_ge_madd(p, p, tmp_c, tmp_a, tmp_b);
 }
-}
 // p = [scalar]B, where B is the base point
-private {
 void mc_ge_scalarmult_base(ge* p, u8* scalar) {
-    u8[32] s_scalar;
+    noinit u8[32] s_scalar;
     crypto_eddsa_mul_add(s_scalar, scalar, mc_ge_scalarmult_base__half_mod_L, mc_ge_scalarmult_base__half_ones);
-    fe tmp_a;
-    fe tmp_b;
-    ge_precomp tmp_c;
-    ge tmp_d;
+    noinit fe tmp_a;
+    noinit fe tmp_b;
+    noinit ge_precomp tmp_c;
+    noinit ge tmp_d;
     mc_fe_1(tmp_c.Yp);
     mc_fe_1(tmp_c.Ym);
     mc_fe_0(tmp_c.T2);
@@ -23419,13 +22990,13 @@ void mc_ge_scalarmult_base(ge* p, u8* scalar) {
 }
 }
 void crypto_eddsa_scalarbase(u8* point, u8* scalar) {
-    ge P;
+    noinit ge P;
     mc_ge_scalarmult_base(&P, scalar);
     mc_ge_tobytes(point, &P);
     crypto_wipe(&P, cast(u64, sizeof(*&P)));
 }
 void crypto_eddsa_key_pair(u8* secret_key, u8* public_key, u8* seed) {
-    u8[64] a;
+    noinit u8[64] a;
     for u64 _i_ = 0; _i_ < 32; _i_++ {
         a[_i_] = seed[_i_];
     }
@@ -23443,8 +23014,8 @@ void crypto_eddsa_key_pair(u8* secret_key, u8* public_key, u8* seed) {
 }
 private {
 void mc_hash_reduce(u8* h, u8* a, u64 a_size, u8* b, u64 b_size, u8* c, u64 c_size) {
-    u8[64] hash;
-    crypto_blake2b_ctx ctx;
+    noinit u8[64] hash;
+    noinit crypto_blake2b_ctx ctx;
     crypto_blake2b_init(&ctx, 64);
     crypto_blake2b_update(&ctx, a, a_size);
     crypto_blake2b_update(&ctx, b, b_size);
@@ -23509,10 +23080,10 @@ void mc_hash_reduce(u8* h, u8* a, u64 a_size, u8* b, u64 b_size, u8* c, u64 c_si
 //   S              = ((h * a) + r) % L
 //   signature      = R || S
 void crypto_eddsa_sign(u8* signature, u8* secret_key, u8* message, u64 message_size) {
-    u8[64] a;
-    u8[32] r;
-    u8[32] h;
-    u8[32] R;
+    noinit u8[64] a;
+    noinit u8[32] r;
+    noinit u8[32] h;
+    noinit u8[32] R;
     crypto_blake2b(a, 64, secret_key, 32);
     crypto_eddsa_trim_scalar(a, a);
     mc_hash_reduce(r, a + 32, 32, message, message_size, null, 0);
@@ -23534,7 +23105,7 @@ void crypto_eddsa_sign(u8* signature, u8* secret_key, u8* message, u64 message_s
 //
 // The last two steps are done in crypto_eddsa_check_equation()
 i32 crypto_eddsa_check(u8* signature, u8* public_key, u8* message, u64 message_size) {
-    u8[32] h;
+    noinit u8[32] h;
     mc_hash_reduce(h, signature, 32, public_key, 32, message, message_size);
     return crypto_eddsa_check_equation(signature, public_key, h);
 }
@@ -23542,8 +23113,8 @@ i32 crypto_eddsa_check(u8* signature, u8* public_key, u8* message, u64 message_s
 /// EdDSA <--> X25519 ///
 /////////////////////////
 void crypto_eddsa_to_x25519(u8* x25519, u8* eddsa) {
-    fe t1;
-    fe t2;
+    noinit fe t1;
+    noinit fe t2;
     mc_fe_frombytes(t2, eddsa);
     mc_fe_add(t1, mc_fe_one, t2);
     mc_fe_sub(t2, mc_fe_one, t2);
@@ -23554,8 +23125,8 @@ void crypto_eddsa_to_x25519(u8* x25519, u8* eddsa) {
     crypto_wipe(t2, cast(u64, sizeof(t2)));
 }
 void crypto_x25519_to_eddsa(u8* eddsa, u8* x25519) {
-    fe t1;
-    fe t2;
+    noinit fe t1;
+    noinit fe t2;
     mc_fe_frombytes(t2, x25519);
     mc_fe_sub(t1, t2, mc_fe_one);
     mc_fe_add(t2, t2, mc_fe_one);
@@ -23637,7 +23208,7 @@ void mc_add_xl(u8* s, u8 x) {
 // has prime order).  That "dirty" base point is the addition of the
 // regular base point (9), and a point of order 8.
 void crypto_x25519_dirty_small(u8* public_key, u8* secret_key) {
-    u8[32] scalar;
+    noinit u8[32] scalar;
     crypto_eddsa_trim_scalar(scalar, secret_key);
     mc_add_xl(scalar, secret_key[0]);
     mc_scalarmult(public_key, scalar, mc_crypto_x25519_dirty_small__dirty_base_point, 256);
@@ -23677,7 +23248,7 @@ void crypto_x25519_dirty_small(u8* public_key, u8* secret_key) {
 // and requires less code than naive constant time look up.
 private {
 void mc_select_lop(i32* out, i32* x, i32* k, u8 cofactor) {
-    fe tmp;
+    noinit fe tmp;
     mc_fe_0(out);
     mc_fe_ccopy(out, k, cast(i32, cofactor) >> 1 & 1);
     mc_fe_ccopy(out, x, cast(i32, cofactor) >> 0 & 1);
@@ -23694,15 +23265,15 @@ void mc_select_lop(i32* out, i32* x, i32* k, u8 cofactor) {
 // Edwards space for more speed (*2 compared to the "small" version).
 // The cost is a bigger binary for programs that don't also sign messages.
 void crypto_x25519_dirty_fast(u8* public_key, u8* secret_key) {
-    u8[32] scalar;
-    ge pk;
+    noinit u8[32] scalar;
+    noinit ge pk;
     crypto_eddsa_trim_scalar(scalar, secret_key);
     mc_ge_scalarmult_base(&pk, scalar);
-    fe t1;
-    fe t2;
+    noinit fe t1;
+    noinit fe t2;
     mc_select_lop(t1, mc_lop_x, mc_sqrtm1, secret_key[0]);
     mc_select_lop(t2, mc_lop_y, mc_fe_one, cast(u8, secret_key[0] + 2));
-    ge_precomp low_order_point;
+    noinit ge_precomp low_order_point;
     mc_fe_add(low_order_point.Yp, t2, t1);
     mc_fe_sub(low_order_point.Ym, t2, t1);
     mc_fe_mul(low_order_point.T2, t2, t1);
@@ -23782,11 +23353,11 @@ private { fe mc_A = fe{486662, 0, 0, 0, 0, 0, 0, 0, 0, 0}; }
 //       u2 = w * non_square * r^2
 //       u2 = u
 void crypto_elligator_map(u8* curve, u8* hidden) {
-    fe r;
-    fe u;
-    fe t1;
-    fe t2;
-    fe t3;
+    noinit fe r;
+    noinit fe u;
+    noinit fe t1;
+    noinit fe t2;
+    noinit fe t3;
     mc_fe_frombytes_mask(r, hidden, 2);
     mc_fe_sq(r, r);
     mc_fe_add(t1, r, r);
@@ -23845,9 +23416,9 @@ void crypto_elligator_map(u8* curve, u8* hidden) {
 //   isr * (u+A) = sqrt(-1     / (non_square * u * (u+A)) * (u+A)
 //   isr * (u+A) = sqrt(-(u+A) / (non_square * u)
 i32 crypto_elligator_rev(u8* hidden, u8* public_key, u8 tweak) {
-    fe t1;
-    fe t2;
-    fe t3;
+    noinit fe t1;
+    noinit fe t2;
+    noinit fe t3;
     mc_fe_frombytes(t1, public_key);
     mc_fe_add(t2, t1, mc_A);
     mc_fe_mul(t3, t1, t2);
@@ -23868,8 +23439,8 @@ i32 crypto_elligator_rev(u8* hidden, u8* public_key, u8 tweak) {
     return is_square - 1;
 }
 void crypto_elligator_key_pair(u8* hidden, u8* secret_key, u8* seed) {
-    u8[32] pk;
-    u8[64] buf;
+    noinit u8[32] pk;
+    noinit u8[64] buf;
     for u64 _i_ = 0; _i_ < 32; _i_++ {
         (buf + 32)[_i_] = seed[_i_];
     }
@@ -23929,11 +23500,11 @@ void mc_redc(u32* u, u32* x) {
 }
 void crypto_x25519_inverse(u8* blind_salt, u8* private_key, u8* curve_point) {
     u32[8] m_inv = {2375587101, 3605803380, 1937624944, 3337575412, 4294967294, 4294967295, 4294967295, 268435455};
-    u8[32] scalar;
+    noinit u8[32] scalar;
     crypto_eddsa_trim_scalar(scalar, private_key);
-    u32[8] m_scl;
+    noinit u32[8] m_scl;
     {
-        u32[16] tmp;
+        noinit u32[16] tmp;
         for u64 _i_ = 0; _i_ < 8; _i_++ {
             tmp[_i_] = 0;
         }
@@ -23942,7 +23513,7 @@ void crypto_x25519_inverse(u8* blind_salt, u8* private_key, u8* curve_point) {
         mc_load32_le_buf(m_scl, scalar, 8);
         crypto_wipe(tmp, cast(u64, sizeof(tmp)));
     }
-    u32[16] product;
+    noinit u32[16] product;
     for i32 i = 252; i >= 0; i-- {
         for u64 _i_ = 0; _i_ < 16; _i_++ {
             product[_i_] = 0;
@@ -23977,10 +23548,10 @@ void crypto_x25519_inverse(u8* blind_salt, u8* private_key, u8* curve_point) {
 ////////////////////////////////
 private {
 void mc_lock_auth(u8* mac, u8* auth_key, u8* ad, u64 ad_size, u8* cipher_text, u64 text_size) {
-    u8[16] sizes;
+    noinit u8[16] sizes;
     mc_store64_le(sizes + 0, ad_size);
     mc_store64_le(sizes + 8, text_size);
-    crypto_poly1305_ctx poly_ctx;
+    noinit crypto_poly1305_ctx poly_ctx;
     crypto_poly1305_init(&poly_ctx, auth_key);
     crypto_poly1305_update(&poly_ctx, ad, ad_size);
     crypto_poly1305_update(&poly_ctx, mc_zero, mc_gap(ad_size, 16));
@@ -24016,7 +23587,7 @@ void crypto_aead_init_ietf(crypto_aead_ctx* ctx, u8* key, u8* nonce) {
     ctx.counter = cast(u64, mc_load32_le(nonce)) << 32;
 }
 void crypto_aead_write(crypto_aead_ctx* ctx, u8* cipher_text, u8* mac, u8* ad, u64 ad_size, u8* plain_text, u64 text_size) {
-    u8[64] auth_key;
+    noinit u8[64] auth_key;
     crypto_chacha20_djb(auth_key, null, 64, ctx.key, ctx.nonce, ctx.counter);
     crypto_chacha20_djb(cipher_text, plain_text, text_size, ctx.key, ctx.nonce, ctx.counter + 1);
     mc_lock_auth(mac, auth_key, ad, ad_size, cipher_text, text_size);
@@ -24026,8 +23597,8 @@ void crypto_aead_write(crypto_aead_ctx* ctx, u8* cipher_text, u8* mac, u8* ad, u
     crypto_wipe(auth_key, cast(u64, sizeof(auth_key)));
 }
 i32 crypto_aead_read(crypto_aead_ctx* ctx, u8* plain_text, u8* mac, u8* ad, u64 ad_size, u8* cipher_text, u64 text_size) {
-    u8[64] auth_key;
-    u8[16] real_mac;
+    noinit u8[64] auth_key;
+    noinit u8[16] real_mac;
     crypto_chacha20_djb(auth_key, null, 64, ctx.key, ctx.nonce, ctx.counter);
     mc_lock_auth(real_mac, auth_key, ad, ad_size, cipher_text, text_size);
     i32 mismatch = crypto_verify16(mac, real_mac);
@@ -24042,13 +23613,13 @@ i32 crypto_aead_read(crypto_aead_ctx* ctx, u8* plain_text, u8* mac, u8* ad, u64 
     return mismatch;
 }
 void crypto_aead_lock(u8* cipher_text, u8* mac, u8* key, u8* nonce, u8* ad, u64 ad_size, u8* plain_text, u64 text_size) {
-    crypto_aead_ctx ctx;
+    noinit crypto_aead_ctx ctx;
     crypto_aead_init_x(&ctx, key, nonce);
     crypto_aead_write(&ctx, cipher_text, mac, ad, ad_size, plain_text, text_size);
     crypto_wipe(&ctx, cast(u64, sizeof(ctx)));
 }
 i32 crypto_aead_unlock(u8* plain_text, u8* mac, u8* key, u8* nonce, u8* ad, u64 ad_size, u8* cipher_text, u64 text_size) {
-    crypto_aead_ctx ctx;
+    noinit crypto_aead_ctx ctx;
     crypto_aead_init_x(&ctx, key, nonce);
     i32 mismatch = crypto_aead_read(&ctx, plain_text, mac, ad, ad_size, cipher_text, text_size);
     crypto_wipe(&ctx, cast(u64, sizeof(ctx)));
@@ -24206,6 +23777,8 @@ i32 uECC_curve_private_key_size(uECC_Curve curve) {
 i32 uECC_curve_public_key_size(uECC_Curve curve) {
     return 2 * curve.num_bytes;
 }
+/* Constant-time comparison to zero - secure way to compare long integers */
+/* Returns 1 if vli == 0, 0 otherwise. */
 private {
 void uECC_vli_clear(uECC_word_t* vli, wordcount_t num_words) {
     wordcount_t i;
@@ -24213,10 +23786,7 @@ void uECC_vli_clear(uECC_word_t* vli, wordcount_t num_words) {
         vli[i] = 0;
     }
 }
-}
-/* Constant-time comparison to zero - secure way to compare long integers */
-/* Returns 1 if vli == 0, 0 otherwise. */
-private {
+/* Returns nonzero if bit 'bit' of vli is set. */
 uECC_word_t uECC_vli_isZero(uECC_word_t* vli, wordcount_t num_words) {
     uECC_word_t bits = 0;
     wordcount_t i;
@@ -24225,24 +23795,18 @@ uECC_word_t uECC_vli_isZero(uECC_word_t* vli, wordcount_t num_words) {
     }
     return cast(uECC_word_t, bits == 0);
 }
-}
-/* Returns nonzero if bit 'bit' of vli is set. */
-private {
+/* Counts the number of bits required to represent vli. */
 uECC_word_t uECC_vli_testBit(uECC_word_t* vli, bitcount_t bit) {
     return vli[cast(i32, bit) >> 6] & cast(uECC_word_t, 1) << cast(u64, bit & 63);
 }
-}
 /* Counts the number of words in vli. */
-private {
 wordcount_t vli_numDigits(uECC_word_t* vli, wordcount_t max_words) {
     wordcount_t i;
     for i = cast(i8, max_words - 1); i >= 0 && vli[i] == 0; --i {
     }
     return cast(wordcount_t, i + 1);
 }
-}
-/* Counts the number of bits required to represent vli. */
-private {
+/* Sets dest = src. */
 bitcount_t uECC_vli_numBits(uECC_word_t* vli, wordcount_t max_words) {
     uECC_word_t i;
     uECC_word_t digit;
@@ -24256,18 +23820,15 @@ bitcount_t uECC_vli_numBits(uECC_word_t* vli, wordcount_t max_words) {
     }
     return cast(bitcount_t, cast(u64, cast(bitcount_t, num_digits - 1) << 6) + i);
 }
-}
-/* Sets dest = src. */
-private {
+/* Constant-time comparison function - secure way to compare long integers */
+/* Returns one if left == right, zero otherwise. */
 void uECC_vli_set(uECC_word_t* dest, uECC_word_t* src, wordcount_t num_words) {
     wordcount_t i;
     for i = 0; i < num_words; ++i {
         dest[i] = src[i];
     }
 }
-}
 /* Returns sign of left - right. */
-private {
 cmpresult_t uECC_vli_cmp_unsafe(uECC_word_t* left, uECC_word_t* right, wordcount_t num_words) {
     wordcount_t i;
     for i = cast(i8, num_words - 1); i >= 0; --i {
@@ -24279,10 +23840,7 @@ cmpresult_t uECC_vli_cmp_unsafe(uECC_word_t* left, uECC_word_t* right, wordcount
     }
     return 0;
 }
-}
-/* Constant-time comparison function - secure way to compare long integers */
-/* Returns one if left == right, zero otherwise. */
-private {
+/* Returns sign of left - right, in constant time. */
 uECC_word_t uECC_vli_equal(uECC_word_t* left, uECC_word_t* right, wordcount_t num_words) {
     uECC_word_t diff = 0;
     wordcount_t i;
@@ -24292,17 +23850,15 @@ uECC_word_t uECC_vli_equal(uECC_word_t* left, uECC_word_t* right, wordcount_t nu
     return cast(uECC_word_t, diff == 0);
 }
 }
-/* Returns sign of left - right, in constant time. */
+/* Computes result = left + right, returning carry. Can modify in place. */
 private {
 cmpresult_t uECC_vli_cmp(uECC_word_t* left, uECC_word_t* right, wordcount_t num_words) {
-    uECC_word_t[4] tmp;
+    noinit uECC_word_t[4] tmp;
     var neg = cast(uECC_word_t, !!uECC_vli_sub(tmp, left, right, num_words));
     uECC_word_t equal = uECC_vli_isZero(tmp, num_words);
-    return cast(cmpresult_t, cast(u64, !equal) - 2 * neg);
+    return cast(cmpresult_t, cast(u64, cast(i32, !equal)) - 2 * neg);
 }
-}
-/* Computes vli = vli >> 1. */
-private {
+/* Computes result = left - right, returning borrow. Can modify in place. */
 void uECC_vli_rshift1(uECC_word_t* vli, wordcount_t num_words) {
     uECC_word_t* end = vli;
     uECC_word_t carry = 0;
@@ -24313,9 +23869,8 @@ void uECC_vli_rshift1(uECC_word_t* vli, wordcount_t num_words) {
         carry = temp << cast(u64, 64 - 1);
     }
 }
-}
-/* Computes result = left + right, returning carry. Can modify in place. */
-private {
+/* Computes result = (left + right) % mod.
+   Assumes that left < mod and right < mod, and that result does not overlap mod. */
 uECC_word_t uECC_vli_add(uECC_word_t* result, uECC_word_t* left, uECC_word_t* right, wordcount_t num_words) {
     uECC_word_t carry = 0;
     wordcount_t i;
@@ -24328,9 +23883,8 @@ uECC_word_t uECC_vli_add(uECC_word_t* result, uECC_word_t* left, uECC_word_t* ri
     }
     return carry;
 }
-}
-/* Computes result = left - right, returning borrow. Can modify in place. */
-private {
+/* Computes result = (left - right) % mod.
+   Assumes that left < mod and right < mod, and that result does not overlap mod. */
 uECC_word_t uECC_vli_sub(uECC_word_t* result, uECC_word_t* left, uECC_word_t* right, wordcount_t num_words) {
     uECC_word_t borrow = 0;
     wordcount_t i;
@@ -24343,8 +23897,6 @@ uECC_word_t uECC_vli_sub(uECC_word_t* result, uECC_word_t* left, uECC_word_t* ri
     }
     return borrow;
 }
-}
-private {
 void muladd(uECC_word_t a, uECC_word_t b, uECC_word_t* r0, uECC_word_t* r1, uECC_word_t* r2) {
     u64 a0 = a & 4294967295;
     u64 a1 = a >> 32;
@@ -24364,11 +23916,11 @@ void muladd(uECC_word_t a, uECC_word_t b, uECC_word_t* r0, uECC_word_t* r1, uECC
     p0 = i0 & 4294967295 | i2 << 32;
     p1 = i3 + (i2 >> 32);
     *r0 += p0;
-    *r1 += p1 + cast(u64, *r0 < p0);
+    *r1 += p1 + cast(u64, cast(i32, *r0 < p0));
     *r2 += cast(uECC_word_t, *r1 < p1 || *r1 == p1 && *r0 < p0);
 }
-}
-private {
+/* Computes result = product % mod, where product is 2N words long. */
+/* Currently only designed to work for curve_p or curve_n. */
 void uECC_vli_mult(uECC_word_t* result, uECC_word_t* left, uECC_word_t* right, wordcount_t num_words) {
     uECC_word_t r0 = 0;
     uECC_word_t r1 = 0;
@@ -24395,33 +23947,26 @@ void uECC_vli_mult(uECC_word_t* result, uECC_word_t* left, uECC_word_t* right, w
     }
     result[num_words * 2 - 1] = r0;
 }
-}
-/* Computes result = (left + right) % mod.
-   Assumes that left < mod and right < mod, and that result does not overlap mod. */
-private {
+/* Computes result = (left * right) % mod. */
 void uECC_vli_modAdd(uECC_word_t* result, uECC_word_t* left, uECC_word_t* right, uECC_word_t* mod, wordcount_t num_words) {
     uECC_word_t carry = uECC_vli_add(result, left, right, num_words);
     if carry || uECC_vli_cmp_unsafe(mod, result, num_words) != 1 {
         uECC_vli_sub(result, result, mod, num_words);
     }
 }
-}
-/* Computes result = (left - right) % mod.
-   Assumes that left < mod and right < mod, and that result does not overlap mod. */
-private {
+/* Computes result = (1 / input) % mod. All VLIs are the same size.
+   See "From Euclid's GCD to Montgomery Multiplication to the Great Divide" */
 void uECC_vli_modSub(uECC_word_t* result, uECC_word_t* left, uECC_word_t* right, uECC_word_t* mod, wordcount_t num_words) {
     uECC_word_t l_borrow = uECC_vli_sub(result, left, right, num_words);
     if l_borrow != 0 {
         uECC_vli_add(result, result, mod, num_words);
     }
 }
-}
-/* Computes result = product % mod, where product is 2N words long. */
-/* Currently only designed to work for curve_p or curve_n. */
-private {
+/* Generates a random integer in the range 0 < random < top.
+   Both random and top have num_words words. */
 void uECC_vli_mmod(uECC_word_t* result, uECC_word_t* product, uECC_word_t* mod, wordcount_t num_words) {
-    uECC_word_t[8] mod_multiple;
-    uECC_word_t[8] tmp;
+    noinit uECC_word_t[8] mod_multiple;
+    noinit uECC_word_t[8] tmp;
     uECC_word_t*[2] v = {tmp, product};
     uECC_word_t index;
     var shift = cast(bitcount_t, num_words * 2 * 64 - uECC_vli_numBits(mod, num_words));
@@ -24454,28 +23999,19 @@ void uECC_vli_mmod(uECC_word_t* result, uECC_word_t* product, uECC_word_t* mod, 
     }
     uECC_vli_set(result, v[index], num_words);
 }
-}
-/* Computes result = (left * right) % mod. */
-private {
 void uECC_vli_modMult(uECC_word_t* result, uECC_word_t* left, uECC_word_t* right, uECC_word_t* mod, wordcount_t num_words) {
-    uECC_word_t[8] product;
+    noinit uECC_word_t[8] product;
     uECC_vli_mult(product, left, right, num_words);
     uECC_vli_mmod(result, product, mod, num_words);
 }
-}
-private {
 void uECC_vli_modMult_fast(uECC_word_t* result, uECC_word_t* left, uECC_word_t* right, uECC_Curve curve) {
-    uECC_word_t[8] product;
+    noinit uECC_word_t[8] product;
     uECC_vli_mult(product, left, right, curve.num_words);
     curve.mmod_fast(result, product);
 }
-}
-private {
 void uECC_vli_modSquare_fast(uECC_word_t* result, uECC_word_t* left, uECC_Curve curve) {
     uECC_vli_modMult_fast(result, left, left, curve);
 }
-}
-private {
 void vli_modInv_update(uECC_word_t* uv, uECC_word_t* mod, wordcount_t num_words) {
     uECC_word_t carry = 0;
     if !(uv[0] & 1) == 0 {
@@ -24486,15 +24022,11 @@ void vli_modInv_update(uECC_word_t* uv, uECC_word_t* mod, wordcount_t num_words)
         uv[num_words - 1] |= cast(u64, 1) << 63;
     }
 }
-}
-/* Computes result = (1 / input) % mod. All VLIs are the same size.
-   See "From Euclid's GCD to Montgomery Multiplication to the Great Divide" */
-private {
 void uECC_vli_modInv(uECC_word_t* result, uECC_word_t* input, uECC_word_t* mod, wordcount_t num_words) {
-    uECC_word_t[4] a;
-    uECC_word_t[4] b;
-    uECC_word_t[4] u;
-    uECC_word_t[4] v;
+    noinit uECC_word_t[4] a;
+    noinit uECC_word_t[4] b;
+    noinit uECC_word_t[4] u;
+    noinit uECC_word_t[4] v;
     cmpresult_t cmpResult;
     if uECC_vli_isZero(input, num_words) != 0 {
         uECC_vli_clear(result, num_words);
@@ -24536,15 +24068,13 @@ void uECC_vli_modInv(uECC_word_t* result, uECC_word_t* input, uECC_word_t* mod, 
     }
     uECC_vli_set(result, u, num_words);
 }
-}
 /* ------ Point operations ------ */
 /* Copyright 2015, Kenneth MacKay. Licensed under the BSD 2-clause license. */
 /* BYTES_TO_WORDS_8 macro removed — calls pre-expanded */
 /* BYTES_TO_WORDS_4 macro removed — calls pre-expanded */
-private {
 void double_jacobian_default(uECC_word_t* X1, uECC_word_t* Y1, uECC_word_t* Z1, uECC_Curve curve) {
-    uECC_word_t[4] t4;
-    uECC_word_t[4] t5;
+    noinit uECC_word_t[4] t4;
+    noinit uECC_word_t[4] t5;
     wordcount_t num_words = curve.num_words;
     if uECC_vli_isZero(Z1, num_words) != 0 {
         return;
@@ -24577,9 +24107,7 @@ void double_jacobian_default(uECC_word_t* X1, uECC_word_t* Y1, uECC_word_t* Z1, 
     uECC_vli_set(Z1, Y1, num_words);
     uECC_vli_set(Y1, t4, num_words);
 }
-}
 /* Computes result = x^3 + ax + b. result must not overlap x. */
-private {
 void x_side_default(uECC_word_t* result, uECC_word_t* x, uECC_Curve curve) {
     uECC_word_t[4] _3 = {3, 0, 0, 0};
     wordcount_t num_words = curve.num_words;
@@ -24597,7 +24125,7 @@ uECC_Curve uECC_secp256r1() {
    from http://www.nsa.gov/ia/_files/nist-routines.pdf */
 private {
 void vli_mmod_fast_secp256r1(u64* result, u64* product) {
-    u64[4] tmp;
+    noinit u64[4] tmp;
     i32 carry;
     uECC_vli_set(result, product, 4);
     tmp[0] = 0;
@@ -24652,25 +24180,21 @@ void vli_mmod_fast_secp256r1(u64* result, u64* product) {
         }
     }
 }
-}
 /* Returns 1 if 'point' is the point at infinity, 0 otherwise. */
 /* Point multiplication algorithm using Montgomery's ladder with co-Z coordinates.
 From http://eprint.iacr.org/2011/338.pdf
 */
 /* Modify (x1, y1) => (x1 * z^2, y1 * z^3) */
-private {
 void apply_z(uECC_word_t* X1, uECC_word_t* Y1, uECC_word_t* Z, uECC_Curve curve) {
-    uECC_word_t[4] t1;
+    noinit uECC_word_t[4] t1;
     uECC_vli_modSquare_fast(t1, Z, curve);
     uECC_vli_modMult_fast(X1, X1, t1, curve);
     uECC_vli_modMult_fast(t1, t1, Z, curve);
     uECC_vli_modMult_fast(Y1, Y1, t1, curve);
 }
-}
 /* P = (x1, y1) => 2P, (x2, y2) => P' */
-private {
 void XYcZ_initial_double(uECC_word_t* X1, uECC_word_t* Y1, uECC_word_t* X2, uECC_word_t* Y2, uECC_word_t* initial_Z, uECC_Curve curve) {
-    uECC_word_t[4] z;
+    noinit uECC_word_t[4] z;
     wordcount_t num_words = curve.num_words;
     if initial_Z != null {
         uECC_vli_set(z, initial_Z, num_words);
@@ -24684,15 +24208,13 @@ void XYcZ_initial_double(uECC_word_t* X1, uECC_word_t* Y1, uECC_word_t* X2, uECC
     curve.double_jacobian(X1, Y1, z, curve);
     apply_z(X2, Y2, z, curve);
 }
-}
 /* Input P = (x1, y1, Z), Q = (x2, y2, Z)
    Output P' = (x1', y1', Z3), P + Q = (x3, y3, Z3)
    or P => P', Q => P + Q
    sub = x1' - x3 (used for subsequent call to XYcZ_addC()).
 */
-private {
 void XYcZ_add(uECC_word_t* X1, uECC_word_t* Y1, uECC_word_t* X2, uECC_word_t* Y2, uECC_word_t* sub, uECC_Curve curve) {
-    uECC_word_t[4] t5;
+    noinit uECC_word_t[4] t5;
     wordcount_t num_words = curve.num_words;
     uECC_vli_modSub(t5, X2, X1, curve.p, num_words);
     uECC_vli_modSquare_fast(t5, t5, curve);
@@ -24709,16 +24231,14 @@ void XYcZ_add(uECC_word_t* X1, uECC_word_t* Y1, uECC_word_t* X2, uECC_word_t* Y2
     uECC_vli_modSub(Y2, Y2, Y1, curve.p, num_words);
     uECC_vli_set(X2, t5, num_words);
 }
-}
 /* Input P = (x1, y1, Z), Q = (x2, y2, Z), sub = x1 - x2
    Output P - Q = (x3', y3', Z3), P + Q = (x3, y3, Z3)
    or P => P - Q, Q => P + Q
 */
-private {
 void XYcZ_addC(uECC_word_t* X1, uECC_word_t* Y1, uECC_word_t* X2, uECC_word_t* Y2, uECC_word_t* sub, uECC_Curve curve) {
-    uECC_word_t[4] t5;
-    uECC_word_t[4] t6;
-    uECC_word_t[4] t7;
+    noinit uECC_word_t[4] t5;
+    noinit uECC_word_t[4] t6;
+    noinit uECC_word_t[4] t7;
     wordcount_t num_words = curve.num_words;
     uECC_vli_modSquare_fast(t5, sub, curve);
     uECC_vli_modMult_fast(X1, X1, t5, curve);
@@ -24740,14 +24260,12 @@ void XYcZ_addC(uECC_word_t* X1, uECC_word_t* Y1, uECC_word_t* X2, uECC_word_t* Y
     uECC_vli_modSub(Y1, t6, Y1, curve.p, num_words);
     uECC_vli_set(X1, t7, num_words);
 }
-}
 /* result may overlap point. */
-private {
 void EccPoint_mult(uECC_word_t* result, uECC_word_t* point, uECC_word_t* scalar, uECC_word_t* initial_Z, bitcount_t num_bits, uECC_Curve curve) {
-    __arr_uECC_word_t_4[2] Rx;
-    __arr_uECC_word_t_4[2] Ry;
-    uECC_word_t[4] z;
-    uECC_word_t[4] sub;
+    noinit __arr_uECC_word_t_4[2] Rx;
+    noinit __arr_uECC_word_t_4[2] Ry;
+    noinit uECC_word_t[4] z;
+    noinit uECC_word_t[4] sub;
     bitcount_t i;
     uECC_word_t nb;
     wordcount_t num_words = curve.num_words;
@@ -24773,8 +24291,6 @@ void EccPoint_mult(uECC_word_t* result, uECC_word_t* point, uECC_word_t* scalar,
     uECC_vli_set(result, Rx[0], num_words);
     uECC_vli_set(result + num_words, Ry[0], num_words);
 }
-}
-private {
 uECC_word_t regularize_k(uECC_word_t* k, uECC_word_t* k0, uECC_word_t* k1, uECC_Curve curve) {
     var num_n_words = cast(wordcount_t, (curve.num_n_bits + (8 * 8 - 1)) / (8 * 8));
     bitcount_t num_n_bits = curve.num_n_bits;
@@ -24782,10 +24298,6 @@ uECC_word_t regularize_k(uECC_word_t* k, uECC_word_t* k0, uECC_word_t* k1, uECC_
     uECC_vli_add(k1, k0, curve.n, num_n_words);
     return carry;
 }
-}
-/* Generates a random integer in the range 0 < random < top.
-   Both random and top have num_words words. */
-private {
 i32 uECC_generate_random_int(uECC_word_t* random, uECC_word_t* top, wordcount_t num_words) {
     var mask = cast(uECC_word_t, -1);
     uECC_word_t tries;
@@ -24804,11 +24316,9 @@ i32 uECC_generate_random_int(uECC_word_t* random, uECC_word_t* top, wordcount_t 
     }
     return 0;
 }
-}
-private {
 uECC_word_t EccPoint_compute_public_key(uECC_word_t* result, uECC_word_t* private_key, uECC_Curve curve) {
-    uECC_word_t[4] tmp1;
-    uECC_word_t[4] tmp2;
+    noinit uECC_word_t[4] tmp1;
+    noinit uECC_word_t[4] tmp2;
     uECC_word_t*[2] p2 = {tmp1, tmp2};
     uECC_word_t* initial_Z = null;
     uECC_word_t carry;
@@ -24825,8 +24335,6 @@ uECC_word_t EccPoint_compute_public_key(uECC_word_t* result, uECC_word_t* privat
     }
     return 1;
 }
-}
-private {
 void uECC_vli_nativeToBytes(u8* bytes, i32 num_bytes, uECC_word_t* native) {
     i32 i;
     for i = 0; i < num_bytes; ++i {
@@ -24834,8 +24342,6 @@ void uECC_vli_nativeToBytes(u8* bytes, i32 num_bytes, uECC_word_t* native) {
         bytes[i] = cast(u8, native[b / 8] >> 8 * (b % 8));
     }
 }
-}
-private {
 void uECC_vli_bytesToNative(uECC_word_t* native, u8* bytes, i32 num_bytes) {
     i32 i;
     uECC_vli_clear(native, cast(wordcount_t, (num_bytes + (8 - 1)) / 8));
@@ -24846,8 +24352,8 @@ void uECC_vli_bytesToNative(uECC_word_t* native, u8* bytes, i32 num_bytes) {
 }
 }
 i32 uECC_make_key(u8* public_key, u8* private_key, uECC_Curve curve) {
-    uECC_word_t[4] _private;
-    uECC_word_t[8] _public;
+    noinit uECC_word_t[4] _private;
+    noinit uECC_word_t[8] _public;
     uECC_word_t tries;
     for tries = 0; tries < 64; ++tries {
         if uECC_generate_random_int(_private, curve.n, cast(wordcount_t, (curve.num_n_bits + (8 * 8 - 1)) / (8 * 8))) == 0 {
@@ -24863,9 +24369,9 @@ i32 uECC_make_key(u8* public_key, u8* private_key, uECC_Curve curve) {
     return 0;
 }
 i32 uECC_shared_secret(u8* public_key, u8* private_key, u8* secret, uECC_Curve curve) {
-    uECC_word_t[8] _public;
-    uECC_word_t[4] _private;
-    uECC_word_t[4] tmp;
+    noinit uECC_word_t[8] _public;
+    noinit uECC_word_t[4] _private;
+    noinit uECC_word_t[4] tmp;
     uECC_word_t*[2] p2 = {_private, tmp};
     uECC_word_t* initial_Z = null;
     uECC_word_t carry;
@@ -24887,8 +24393,8 @@ i32 uECC_shared_secret(u8* public_key, u8* private_key, u8* secret, uECC_Curve c
 }
 private {
 i32 uECC_valid_point(uECC_word_t* point, uECC_Curve curve) {
-    uECC_word_t[4] tmp1;
-    uECC_word_t[4] tmp2;
+    noinit uECC_word_t[4] tmp1;
+    noinit uECC_word_t[4] tmp2;
     wordcount_t num_words = curve.num_words;
     if uECC_vli_isZero(point, cast(wordcount_t, curve.num_words * 2)) != 0 {
         return 0;
@@ -24902,14 +24408,14 @@ i32 uECC_valid_point(uECC_word_t* point, uECC_Curve curve) {
 }
 }
 i32 uECC_valid_public_key(u8* public_key, uECC_Curve curve) {
-    uECC_word_t[8] _public;
+    noinit uECC_word_t[8] _public;
     uECC_vli_bytesToNative(_public, public_key, curve.num_bytes);
     uECC_vli_bytesToNative(_public + curve.num_words, public_key + curve.num_bytes, curve.num_bytes);
     return uECC_valid_point(_public, curve);
 }
 i32 uECC_compute_public_key(u8* private_key, u8* public_key, uECC_Curve curve) {
-    uECC_word_t[4] _private;
-    uECC_word_t[8] _public;
+    noinit uECC_word_t[4] _private;
+    noinit uECC_word_t[8] _public;
     uECC_vli_bytesToNative(_private, private_key, (curve.num_n_bits + 7) / 8);
     if uECC_vli_isZero(_private, cast(wordcount_t, (curve.num_n_bits + (8 * 8 - 1)) / (8 * 8))) != 0 {
         return 0;
@@ -24952,14 +24458,12 @@ void bits2int(uECC_word_t* native, u8* bits, u32 bits_size, uECC_Curve curve) {
         uECC_vli_sub(native, native, curve.n, cast(wordcount_t, num_n_words));
     }
 }
-}
-private {
 i32 uECC_sign_with_k_internal(u8* private_key, u8* message_hash, u32 hash_size, uECC_word_t* k, u8* signature, uECC_Curve curve) {
-    uECC_word_t[4] tmp;
-    uECC_word_t[4] s;
+    noinit uECC_word_t[4] tmp;
+    noinit uECC_word_t[4] s;
     uECC_word_t*[2] k2 = {tmp, s};
     uECC_word_t* initial_Z = null;
-    uECC_word_t[8] p;
+    noinit uECC_word_t[8] p;
     uECC_word_t carry;
     wordcount_t num_words = curve.num_words;
     var num_n_words = cast(wordcount_t, (curve.num_n_bits + (8 * 8 - 1)) / (8 * 8));
@@ -25004,12 +24508,12 @@ i32 uECC_sign_with_k_internal(u8* private_key, u8* message_hash, u32 hash_size, 
 }
 /* For testing - sign with an explicitly specified k value */
 i32 uECC_sign_with_k(u8* private_key, u8* message_hash, u32 hash_size, u8* k, u8* signature, uECC_Curve curve) {
-    uECC_word_t[4] k2;
+    noinit uECC_word_t[4] k2;
     bits2int(k2, k, cast(u32, (curve.num_n_bits + 7) / 8), curve);
     return uECC_sign_with_k_internal(private_key, message_hash, hash_size, k2, signature, curve);
 }
 i32 uECC_sign(u8* private_key, u8* message_hash, u32 hash_size, u8* signature, uECC_Curve curve) {
-    uECC_word_t[4] k;
+    noinit uECC_word_t[4] k;
     uECC_word_t tries;
     for tries = 0; tries < 64; ++tries {
         if uECC_generate_random_int(k, curve.n, cast(wordcount_t, (curve.num_n_bits + (8 * 8 - 1)) / (8 * 8))) == 0 {
@@ -25036,13 +24540,9 @@ void HMAC_init(uECC_HashContext* hash_context, u8* K) {
     hash_context.init_hash(hash_context);
     hash_context.update_hash(hash_context, pad, hash_context.block_size);
 }
-}
-private {
 void HMAC_update(uECC_HashContext* hash_context, u8* message, u32 message_size) {
     hash_context.update_hash(hash_context, message, message_size);
 }
-}
-private {
 void HMAC_finish(uECC_HashContext* hash_context, u8* K, u8* result) {
     u8* pad = hash_context.tmp + 2 * hash_context.result_size;
     u32 i;
@@ -25058,9 +24558,7 @@ void HMAC_finish(uECC_HashContext* hash_context, u8* K, u8* result) {
     hash_context.update_hash(hash_context, result, hash_context.result_size);
     hash_context.finish_hash(hash_context, result);
 }
-}
 /* V = HMAC_K(V) */
-private {
 void update_V(uECC_HashContext* hash_context, u8* K, u8* V) {
     HMAC_init(hash_context, K);
     HMAC_update(hash_context, V, hash_context.result_size);
@@ -25100,7 +24598,7 @@ i32 uECC_sign_deterministic(u8* private_key, u8* message_hash, u32 hash_size, uE
     HMAC_finish(hash_context, K, K);
     update_V(hash_context, K, V);
     for tries = 0; tries < 64; ++tries {
-        uECC_word_t[4] T;
+        noinit uECC_word_t[4] T;
         var T_ptr = cast(u8*, T);
         wordcount_t T_bytes = 0;
         while true {
@@ -25134,22 +24632,22 @@ bitcount_t smax(bitcount_t a, bitcount_t b) {
 }
 }
 i32 uECC_verify(u8* public_key, u8* message_hash, u32 hash_size, u8* signature, uECC_Curve curve) {
-    uECC_word_t[4] u1;
-    uECC_word_t[4] u2;
-    uECC_word_t[4] z;
-    uECC_word_t[8] sum;
-    uECC_word_t[4] rx;
-    uECC_word_t[4] ry;
-    uECC_word_t[4] tx;
-    uECC_word_t[4] ty;
-    uECC_word_t[4] tz;
-    uECC_word_t*[4] points;
+    noinit uECC_word_t[4] u1;
+    noinit uECC_word_t[4] u2;
+    noinit uECC_word_t[4] z;
+    noinit uECC_word_t[8] sum;
+    noinit uECC_word_t[4] rx;
+    noinit uECC_word_t[4] ry;
+    noinit uECC_word_t[4] tx;
+    noinit uECC_word_t[4] ty;
+    noinit uECC_word_t[4] tz;
+    noinit uECC_word_t*[4] points;
     uECC_word_t* point;
     bitcount_t num_bits;
     bitcount_t i;
-    uECC_word_t[8] _public;
-    uECC_word_t[4] r;
-    uECC_word_t[4] s;
+    noinit uECC_word_t[8] _public;
+    noinit uECC_word_t[4] r;
+    noinit uECC_word_t[4] s;
     wordcount_t num_words = curve.num_words;
     var num_n_words = cast(wordcount_t, (curve.num_n_bits + (8 * 8 - 1)) / (8 * 8));
     rx[num_n_words - 1] = 0;
@@ -25183,7 +24681,7 @@ i32 uECC_verify(u8* public_key, u8* message_hash, u32 hash_size, u8* signature, 
     points[2] = _public;
     points[3] = sum;
     num_bits = smax(uECC_vli_numBits(u1, num_n_words), uECC_vli_numBits(u2, num_n_words));
-    point = points[!!uECC_vli_testBit(u1, cast(bitcount_t, num_bits - 1)) | cast(i32, !!uECC_vli_testBit(u2, cast(bitcount_t, num_bits - 1))) << 1];
+    point = points[cast(i32, !!uECC_vli_testBit(u1, cast(bitcount_t, num_bits - 1))) | cast(i32, !!uECC_vli_testBit(u2, cast(bitcount_t, num_bits - 1))) << 1];
     uECC_vli_set(rx, point, num_words);
     uECC_vli_set(ry, point + num_words, num_words);
     uECC_vli_clear(z, num_words);
@@ -25191,7 +24689,7 @@ i32 uECC_verify(u8* public_key, u8* message_hash, u32 hash_size, u8* signature, 
     for i = cast(i16, num_bits - 2); i >= 0; --i {
         uECC_word_t index;
         curve.double_jacobian(rx, ry, z, curve);
-        index = cast(u64, !!uECC_vli_testBit(u1, i) | cast(i32, !!uECC_vli_testBit(u2, i)) << 1);
+        index = cast(u64, cast(i32, !!uECC_vli_testBit(u1, i)) | cast(i32, !!uECC_vli_testBit(u2, i)) << 1);
         point = points[index];
         if point != null {
             uECC_vli_set(tx, point, num_words);

@@ -26,6 +26,14 @@ when os(windows) {
     }
     // u64 → u32 Sleep wrapper.
     void rl_sleep_u64(u64 ms) { Sleep(cast(u32, ms)); }
+    // POSIX-name file ops: Windows ships only the _-prefixed msvcrt variants,
+    // so the POSIX spellings are stubs here (real on the linux/macOS arms,
+    // stubbed on wasm below).
+    i32 access(u8* path, i32 mode) { return 0 - 1; }
+    u8* getcwd(u8* buf, u64 size) { return null; }
+    i32 chdir(u8* path) { return 0 - 1; }
+    i32 mkdir(u8* path, u32 mode) { return 0 - 1; }
+    i64 readlink(u8* path, u8* buf, u64 bufsiz) { return 0 - 1; }
 }
 when os(linux) || os(macos) || os(ios) {
     void rl_sleep_u64(u64 ms) { }
@@ -94,6 +102,28 @@ when os(macos) || os(ios) {
     }
 }
 
+// wasm: no real filesystem. Directory/path ops are stubs; the JS-host
+// VFS (RPW4) serves bundled assets through fopen/fread (cstdlib_shim
+// wasm arm). Sleep is a no-op (the RAF loop paces frames).
+when os(wasm) {
+    i32 access(u8* path, i32 mode) { ignore path; ignore mode; return 0 - 1; }
+    i32 chdir(u8* path) { ignore path; return 0 - 1; }
+    i32 mkdir(u8* path, u32 mode) { ignore path; ignore mode; return 0 - 1; }
+    u8* getcwd(u8* buf, u64 size) {
+        if buf != null && size > 0 { *buf = 0; }
+        return buf;
+    }
+    i32 system(u8* cmd) { ignore cmd; return 0 - 1; }
+    void* opendir(u8* name) { ignore name; return null; }
+    i32 closedir(void* dir) { ignore dir; return 0; }
+    i64 readlink(u8* path, u8* buf, u64 bufsiz) { ignore path; ignore buf; ignore bufsiz; return 0 - 1; }
+
+    struct dirent { u8* d_name; }
+    dirent* rl_readdir(void* dir) { ignore dir; return null; }
+
+    void rl_sleep_u64(u64 ms) { ignore ms; }
+}
+
 // <sys/stat.h> file-type tests.
 bool S_ISREG(i32 mode) { return (mode & 0xF000) == 0x8000; }
 bool S_ISDIR(i32 mode) { return (mode & 0xF000) == 0x4000; }
@@ -104,6 +134,8 @@ i32 rl_fstat(u8* path, void* buf) { return 0 - 1; }
 i32 errno = 0;
 
 // Null FILE* sentinels for fflush(stdout/stderr). Output still
-// reaches the console.
-void* stdout = null;
-void* stderr = null;
+// reaches the console. Named c_stdout/c_stderr — transminc maps the
+// C names here by default — so they can't shadow minc's stdout()/
+// stderr() builtins in units that concatenate this shim.
+void* c_stdout = null;
+void* c_stderr = null;

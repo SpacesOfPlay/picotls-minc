@@ -3,5 +3,3 @@ build/
 *.obj
 *.o
 *.pdb
-tools/minc/
-tools/minc-*.zip

@@ -2,9 +2,10 @@
 
 ## Prerequisites
 
-- **minc compiler** — run `./tools/get_minc.ps1` (Windows) or
-  `./tools/get_minc.sh` (Linux). Or install manually from
-  <https://github.com/SpacesOfPlay/minc-dev/releases> and put on PATH.
+- **minc compiler** — install the toolchain from <https://minc.dev>
+  onto your PATH with the one-liner in `install_minc.md`. You can
+  also set `$MINC` / `$env:MINC` or drop a `minc` binary next to the
+  build script.
 - A POSIX shell (Linux/macOS) or PowerShell 5+ (Windows).
 
 ## Commands
@@ -34,8 +35,8 @@ TLS_HOST=www.google.com TLS_PORT=443 TLS_SNI=www.google.com ./build.sh examples/
 
 ## Troubleshooting
 
-- **`minc compiler not found`** — run `./tools/get_minc.{ps1,sh}` or
-  put `minc(.exe)` on PATH.
+- **`minc compiler not found`** — install minc (see
+  `install_minc.md`) or put `minc(.exe)` on PATH.
 - **`missing lib/picotls.mc`** — you're running `build.ps1` from
   outside the dist root.
 - **TLS handshake fails against a public server** — see

@@ -85,6 +85,8 @@ when os(macos) || os(ios) {
         i32 getaddrinfo(u8* node, u8* service, void* hints, void** res);
         void freeaddrinfo(void* res);
     }
+    // BSD/Darwin struct addrinfo: ai_canonname precedes ai_addr
+    // (the reverse of Linux/glibc).
     struct _NetAddrInfoM {
         i32 ai_flags;
         i32 ai_family;

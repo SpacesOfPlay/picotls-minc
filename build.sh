@@ -18,32 +18,20 @@ set -e
 
 root="$(cd "$(dirname "$0")" && pwd)"
 
-# Locate minc — look in tools/minc/ (local fetched-via-get_minc
-# copy) first, then PATH. If neither, print install instructions
-# + exit.
-minc=""
-if [ -x "$root/tools/minc/minc" ]; then
-    minc="$root/tools/minc/minc"
+# minc: $MINC override (install dir, or a direct binary path), else
+# PATH (installed toolchain), else next
+# to this script (manual zip layout). Install from https://minc.dev.
+if [ -n "${MINC:-}" ]; then
+    if [ -d "$MINC" ]; then minc="$MINC/minc"; else minc="$MINC"; fi
+elif command -v minc >/dev/null 2>&1; then
+    minc="$(command -v minc)"
+else
+    minc="$root/minc"
 fi
-if [ -z "$minc" ]; then
-    minc="$(command -v minc 2>/dev/null || true)"
-fi
-if [ -z "$minc" ]; then
-    cat >&2 <<'EOF'
-
-minc compiler not found.
-
-Options:
-  1. Auto-fetch the pinned closed-source binary (~1.7 MB):
-       ./tools/get_minc.sh
-     (drops a tools/minc/minc; gitignored; license at tools/minc/LICENSE.md)
-
-  2. Install manually from
-       https://github.com/SpacesOfPlay/minc-dev/releases
-     and put minc on PATH.
-
-See README.md (Prerequisites) and LICENSE.md (minc is separately licensed).
-EOF
+if [ ! -x "$minc" ]; then
+    echo "minc compiler not found. Install it:" >&2
+    echo "  curl -fsSL https://minc.dev/install | bash" >&2
+    echo "or set MINC (see install_minc.md)." >&2
     exit 1
 fi
 

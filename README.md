@@ -14,15 +14,15 @@ Windows:
 ```powershell
 git clone https://github.com/<your-org>/picotls-minc
 cd picotls-minc
-./tools/get_minc.ps1     # one-time: fetch minc compiler (~1.7 MB)
+powershell -c "irm minc.dev/install.ps1 | iex"   # install minc (see install_minc.md)
 ./build.ps1              # runs examples/01_https_get.mc against www.google.com
 ```
 
-Linux:
+Linux / macOS:
 ```sh
 git clone https://github.com/<your-org>/picotls-minc
 cd picotls-minc
-./tools/get_minc.sh
+curl -fsSL https://minc.dev/install | bash       # install minc (see install_minc.md)
 ./build.sh
 ```
 
@@ -69,11 +69,11 @@ matrix.
 
 ## Prerequisites
 
-- **minc compiler** — `./tools/get_minc.{ps1,sh}` fetches a pinned
-  release from
-  <https://github.com/SpacesOfPlay/minc-dev/releases> (SHA-256
-  verified, dropped at `tools/minc/`). Or install manually and put
-  on PATH.
+- **minc compiler** — the one-liner in
+  [`install_minc.md`](install_minc.md) installs the minc toolchain from
+  <https://minc.dev> and puts it on PATH. The build scripts also
+  honour a `$MINC` / `$env:MINC` override or a `minc` binary sitting
+  next to the script.
 
   **`minc` is closed-source proprietary software, NOT covered by
   this repo's license.** See [`LICENSE.md`](LICENSE.md).
