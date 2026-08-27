@@ -14,7 +14,7 @@ i32 gettimeofday(timeval* tv, void* tz) {
     return 0;
 }
 
-// Aligned allocation (_aligned_malloc / _aligned_free / posix_memalign)
+// Aligned allocation (_picotls_aligned_malloc / _picotls_aligned_free / _picotls_posix_memalign)
 // is provided by cstdlib_shim, backed by the program allocator.
 
 when os(windows) {

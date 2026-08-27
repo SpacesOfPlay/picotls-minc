@@ -1,11 +1,7 @@
 
 
-// Aligned allocation over the program allocator (no libc aligned-alloc).
-// _aligned_malloc over-allocates and stashes the base pointer before the
-// aligned address; _aligned_free recovers and releases it. posix_memalign
-// returns a direct allocation (released by plain free), relying on the
-// allocator's default alignment.
-void* _aligned_malloc(u64 size, u64 align) {
+// Aligned allocation
+void* _picotls_aligned_malloc(u64 size, u64 align) {
     i64 a = cast(i64, align);
     if a < 1 { a = 1; }
     i64 slot = 8;
@@ -16,12 +12,12 @@ void* _aligned_malloc(u64 size, u64 align) {
     *store = cast(void*, base);
     return cast(void*, cast(u8*, aligned));
 }
-void _aligned_free(void* p) {
+void _picotls_aligned_free(void* p) {
     if p == null { return; }
     void** store = cast(void**, cast(u8*, cast(i64, p) - 8));
     free(*store);
 }
-i32 posix_memalign(void** memptr, i32 alignment, u64 size) {
+i32 _picotls_posix_memalign(void** memptr, i32 alignment, u64 size) {
     ignore alignment;
     *memptr = alloc(cast(i64, size));
     if *memptr == null { return 12; }
@@ -39,20 +35,18 @@ when os(windows) {
         void* memchr(void* s, i32 c, u64 n);
         u64 strlen(u8* s);
         i32 atoi(u8* s);
-        f64 exp(f64 x);
         void abort();
     }
-    // C99 math (round/log2/f32 variants) is in UCRT, not msvcrt.
     extern "ucrtbase.dll" {
+        f64 exp(f64 x);
         f64 round(f64 x);
-        f64 log2(f64 x);
         // snprintf / vsnprintf: provided by cvararg_shim.mc.
-        // memcpy, memset: provided by the runtime. memmove is not.
+        // memcpy, memset: provided by the runtime.
         void* memmove(void* dst, void* src, u64 n);
     }
     // MSVC FP-usage sentinel.
     i32 _fltused = 0x9875;
-    // POSIX errno — a process-wide slot (not thread-local).
+    // POSIX errno; a process-wide slot (not thread-local).
     i32 errno = 0;
     // Win32 high-resolution timer. void* params so LARGE_INTEGER need
     // not be in scope; callers pass a pointer to their own.
@@ -61,11 +55,7 @@ when os(windows) {
         i32 QueryPerformanceCounter(void* p);
     }
     // MSVC bit-scan intrinsic over minc's clz builtin. Returns
-    // nonzero iff mask != 0, like the intrinsic; call sites compare
-    // `!= 0` or ignore the result (sinfl/sdefl, picotls, box3d).
-    // Canonical definition for the shim test stack — box3d's demo
-    // stack carries its own copy in ext/box3d_libc_bridge.mc; the
-    // two stacks never share a unit.
+    // nonzero iff mask != 0.
     u8 _BitScanReverse(u32* index, u32 mask) {
         if mask == 0 { return 0; }
         *index = cast(u32, 31 - clz(cast(i32, mask)));
@@ -87,11 +77,9 @@ when os(linux) {
         void abort();
         void* memmove(void* dst, void* src, u64 n);
     }
-    // glibc keeps the math functions in libm.so.6, not libc.so.6 — binding
-    // them here is what pulls libm into DT_NEEDED so they resolve at runtime.
+    // glibc math functions in libm.so.6
     extern "libm.so.6" {
         f64 exp(f64 x);
-        f64 log2(f64 x);
         f64 round(f64 x);
     }
 }
@@ -112,7 +100,6 @@ when os(android) {
     }
     extern "libm.so" {
         f64 exp(f64 x);
-        f64 log2(f64 x);
         f64 round(f64 x);
     }
 }
@@ -134,7 +121,6 @@ when os(macos) || os(ios) {
         u64 strlen(u8* s);
         i32 atoi(u8* s);
         f64 exp(f64 x);
-        f64 log2(f64 x);
         f64 round(f64 x);
         // malloc, calloc, realloc, free: provided by the runtime allocator.
         void abort();
@@ -175,9 +161,7 @@ i32 __builtin_ctzl(u64 x) {
     return c;
 }
 
-// POSIX <time.h>: timespec + clock_gettime. The real libc fn on
-// linux/macos; on Windows (no libc clock_gettime) a monotonic
-// implementation backed by the high-resolution performance counter.
+// POSIX <time.h>: timespec + clock_gettime.
 struct timespec { i64 tv_sec; i64 tv_nsec; }
 when os(windows) {
     i32 clock_gettime(i32 clk_id, timespec* tp) {
@@ -196,7 +180,7 @@ when os(windows) {
     extern "libSystem.B.dylib" i32 clock_gettime(i32 clk_id, void* tp);
 }
 
-// <stdio.h> file I/O. SEEK_* are the standard ANSI values.
+// <stdio.h> file I/O. SEEK_* standard ANSI values.
 const i32 SEEK_SET = 0;
 const i32 SEEK_CUR = 1;
 const i32 SEEK_END = 2;
@@ -218,8 +202,7 @@ when os(macos) || os(ios) {
 
 
 // --- wasm target ---
-// On wasm there is no system libc, so the libc subset is provided here
-// (over the builtin allocator) or as host imports.
+// libc subset for wasm.
 when os(wasm) {
     // abort delegates to the JS host (which logs + stops).
     extern "env" void __wasm_abort();
@@ -227,15 +210,6 @@ when os(wasm) {
 
     // Math comes from the math module (it defines the wasm versions).
     import math;
-
-    // --- allocator ---
-    void* malloc(u64 size)            { return alloc(cast(i64, size)); }
-    void* calloc(u64 count, u64 size) {
-        i64 total = cast(i64, count) * cast(i64, size);
-        void* p = alloc(total);
-        if p != null { memset(p, 0, total); }
-        return p;
-    }
 
     // --- memory ---
     i32 memcmp(void* a, void* b, u64 n) {

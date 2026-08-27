@@ -15,7 +15,7 @@ Windows:
 git clone https://github.com/<your-org>/picotls-minc
 cd picotls-minc
 powershell -c "irm minc.dev/install.ps1 | iex"   # install minc (see install_minc.md)
-./build.ps1              # runs examples/01_https_get.mc against www.google.com
+minc run                 # runs examples/01_https_get.mc against www.google.com
 ```
 
 Linux / macOS:
@@ -23,12 +23,12 @@ Linux / macOS:
 git clone https://github.com/<your-org>/picotls-minc
 cd picotls-minc
 curl -fsSL https://minc.dev/install | bash       # install minc (see install_minc.md)
-./build.sh
+minc run
 ```
 
 Then pass any `.mc` path to run something else:
 ```
-./build.ps1 examples/02_in_memory_handshake.mc   # offline TLS 1.3 handshake
+minc run examples/02_in_memory_handshake.mc      # offline TLS 1.3 handshake
 ```
 
 ## Hello world
@@ -48,7 +48,7 @@ i32 main() {
 }
 ```
 
-Save as `hello.mc`, then `./build.ps1 hello.mc`.
+Save as `hello.mc`, then `minc run hello.mc`.
 
 ## What works
 
@@ -71,9 +71,9 @@ matrix.
 
 - **minc compiler** — the one-liner in
   [`install_minc.md`](install_minc.md) installs the minc toolchain from
-  <https://minc.dev> and puts it on PATH. The build scripts also
-  honour a `$MINC` / `$env:MINC` override or a `minc` binary sitting
-  next to the script.
+  <https://minc.dev> and puts it on PATH. The build (`build.mc`, run
+  by `minc run`) also honours a `$MINC` / `$env:MINC` override or a
+  `minc` binary sitting next to the script.
 
   **`minc` is closed-source proprietary software, NOT covered by
   this repo's license.** See [`LICENSE.md`](LICENSE.md).

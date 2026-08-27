@@ -1,6 +1,6 @@
 picotls-minc snapshot
   upstream:   picotls bundled
-  built:      2026-07-30 15:45:31
-  by:         transminc @ 0ee42c7
+  built:      2026-08-26 17:03:31
+  by:         transminc @ d037084
   cifra:      bundled
   monocypher: bundled
