@@ -49,7 +49,7 @@ void cifra_sha256_pl_final(ptls_hash_context_t* base_ctx, void* md, ptls_hash_fi
         cf_sha256_init(&ctx.state);
         return;
     }
-    free(cast(void*, ctx));
+    free(ctx);
 }
 }
 
@@ -113,7 +113,7 @@ i32 ed25519_pl_verify_sign(void* verify_ctx, u16 algo,
 void* ed25519_pl_make_verify_ctx(u8* peer_pubkey) {
     ed25519_verify_ctx_t* ctx = new(ed25519_verify_ctx_t);
     for u64 i = 0; i < 32; i++ { ctx.public_key[i] = peer_pubkey[i]; }
-    return cast(void*, ctx);
+    return ctx;
 }
 
 // Client cert callback for raw-pubkey servers. Extracts the
@@ -197,7 +197,7 @@ void cifra_sha384_pl_final(ptls_hash_context_t* base_ctx, void* md, ptls_hash_fi
         cf_sha384_init(&ctx.state);
         return;
     }
-    free(cast(void*, ctx));
+    free(ctx);
 }
 }
 
@@ -307,7 +307,7 @@ private { void aesgcm_pl_encrypt_v(ptls_aead_context_t* base, void* output, ptls
         off = off + input[i].len;
     }
     aesgcm_pl_encrypt(base, output, cast(void*, tmp), total, seq, aad, aadlen, null);
-    free(cast(void*, tmp));
+    free(tmp);
 }
 }
 
@@ -454,7 +454,7 @@ private { void chapoly_pl_encrypt_v(ptls_aead_context_t* base, void* output, ptl
         off = off + input[i].len;
     }
     chapoly_pl_encrypt(base, output, cast(void*, tmp), total, seq, aad, aadlen, null);
-    free(cast(void*, tmp));
+    free(tmp);
 }
 }
 
@@ -563,8 +563,8 @@ private { i32 x25519_pl_on_exchange(ptls_key_exchange_context_t** keyex,
         *secret = ptls_iovec_init(malloc_copy(&secret_local[0], 32), 32);
     }
     if release != 0 {
-        if ctx.super.pubkey.base != null { free(cast(void*, ctx.super.pubkey.base)); }
-        free(cast(void*, ctx));
+        if ctx.super.pubkey.base != null { free(ctx.super.pubkey.base); }
+        free(ctx);
         *keyex = null;
     }
     return 0;
