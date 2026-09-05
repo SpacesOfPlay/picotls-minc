@@ -13,7 +13,6 @@ when os(windows) {
         i32 _chdir(u8* path);
         i32 _mkdir(u8* path);
         u8* _getcwd(u8* buf, i32 size);
-        i32 fprintf(void* stream, u8* fmt, ...);
         i32 system(u8* cmd);
     }
     extern "kernel32.dll" {
@@ -45,7 +44,6 @@ when os(linux) {
         i32 chdir(u8* path);
         i32 mkdir(u8* path, u32 mode);
         u8* getcwd(u8* buf, u64 size);
-        i32 fprintf(void* stream, u8* fmt, ...);
         i32 system(u8* cmd);
         i32 nanosleep(void* req, void* rem);
         i32 clock_gettime(i32 clk_id, void* tp);
@@ -61,7 +59,6 @@ when os(macos) || os(ios) {
         i32 chdir(u8* path);
         i32 mkdir(u8* path, u32 mode);
         u8* getcwd(u8* buf, u64 size);
-        i32 fprintf(void* stream, u8* fmt, ...);
         i32 system(u8* cmd);
         i32 nanosleep(void* req, void* rem);
         i32 clock_gettime(i32 clk_id, void* tp);

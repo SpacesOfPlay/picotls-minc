@@ -36,6 +36,6 @@ i32 main() {
     for i32 i = 0; i < to_print; i++ { printf("%c", cast(i32, response[i])); }
     if n > 8192 { printf("\n[... +%d more bytes truncated]\n", n - 8192); }
     printf("\n--- end ---\n");
-    free(cast(void*, response));
+    free(response);
     return 0;
 }

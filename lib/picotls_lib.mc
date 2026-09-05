@@ -3,6 +3,7 @@
 // Imports added on export so this module resolves standalone (LSP).
 import cstdlib_shim;
 import cfile_shim;
+import cvararg_shim;
 import picotls_shim;
 
 // transminc: C stdlib constants referenced by source
@@ -24944,7 +24945,7 @@ i32 uECC_sign_deterministic(u8* private_key, u8* message_hash, u32 hash_size, uE
     update_V(hash_context, K, V);
     for tries = 0; tries < 64; ++tries {
         noinit uECC_word_t[4] T;
-        var T_ptr = cast(u8*, T);
+        var T_ptr = cast(u8*, &T[0]);
         wordcount_t T_bytes = 0;
         while true {
             update_V(hash_context, K, V);

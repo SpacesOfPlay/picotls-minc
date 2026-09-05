@@ -2,6 +2,7 @@
 
 import cstdlib_shim;
 import cfile_shim;
+import cvararg_shim;
 import picotls_shim;
 import net;
 import thread;

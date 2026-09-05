@@ -541,7 +541,7 @@ i32 pico_https_get_alloc(u8* host, u16 port, u8* sni, u8* path,
                              pico_growbuf_chunk, cast(void*, &g),
                              verify_or_null);
     if r < 0 || g.oom {
-        if g.buf != null { free(cast(void*, g.buf)); }
+        if g.buf != null { free(g.buf); }
         *out_ptr = null;
         return r < 0 ? r : PICO_HTTPS_ERR_RESP_OVERFLOW;
     }

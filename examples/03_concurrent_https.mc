@@ -18,7 +18,7 @@ void https_thread_entry(void* raw) {
     u8* buf = null;
     a.result = pico_https_get_alloc(a.host, a.port, a.sni, cast(u8*, "/"),
                                   &buf, null, null, null);
-    if buf != null { free(cast(void*, buf)); }
+    if buf != null { free(buf); }
 }
 }
 

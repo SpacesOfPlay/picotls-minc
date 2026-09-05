@@ -526,7 +526,7 @@ i32 rsa_pss_pinned_verify_cert_cb(ptls_verify_certificate_t* self,
     rsa_verify_ctx_t* ctx = new(rsa_verify_ctx_t);
     if mc_spki_extract_rsa_pubkey(spki_start, spki_len, &ctx.modulus[0],
                                   &ctx.modulus_len, &ctx.exponent) != 0 {
-        free(cast(void*, ctx));
+        free(ctx);
         eprint("rsa verify: SPKI pubkey extract failed (not RSA?)\n");
         return 0 - 1;
     }
