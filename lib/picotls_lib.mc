@@ -121,6 +121,7 @@ type ptls_async_job_t = st_ptls_async_job_t;
 type ptls_sign_certificate_t = st_ptls_sign_certificate_t;
 type ptls_verify_certificate_t = st_ptls_verify_certificate_t;
 type ptls_encrypt_ticket_t = st_ptls_encrypt_ticket_t;
+type ptls_save_ticket_properties_t = st_ptls_save_ticket_properties_t;
 type ptls_save_ticket_t = st_ptls_save_ticket_t;
 type ptls_log_event_t = st_ptls_log_event_t;
 type ptls_update_open_count_t = st_ptls_update_open_count_t;
@@ -496,7 +497,7 @@ struct st_ptls_emit_certificate_t {
  */
 struct st_ptls_async_job_t {
     fn(st_ptls_async_job_t*): void destroy_;
-    fn(st_ptls_async_job_t*): i32 get_fd;
+    fn(st_ptls_async_job_t*): i64 get_fd;
     fn(st_ptls_async_job_t*, fn(void*): void, void*): void set_completion_callback;
 }
 
@@ -533,10 +534,19 @@ struct st_ptls_encrypt_ticket_t {
 }
 
 /**
+ * properties of a session ticket being saved
+ */
+struct st_ptls_save_ticket_properties_t {
+    u32 lifetime;
+    u32 early_data;
+    u32 max_early_data_size;
+}
+
+/**
  * saves a ticket (client-only)
  */
 struct st_ptls_save_ticket_t {
-    fn(st_ptls_save_ticket_t*, ptls_t*, ptls_iovec_t): i32 cb;
+    fn(st_ptls_save_ticket_t*, ptls_t*, ptls_iovec_t, ptls_save_ticket_properties_t*): i32 cb;
 }
 
 /**
@@ -724,6 +734,7 @@ struct st_ptls_log_point_t {
 struct st_ptls_log_conn_state_t {
     f32 random_;
     u8[16] address;
+    u64 conn_id;
     st_ptls_log_state_t state;
 }
 
@@ -3191,6 +3202,7 @@ i32 key_schedule_select_cipher(ptls_key_schedule_t* sched, ptls_cipher_suite_t* 
             }
         }
     }
+    assert(found_slot != SIZE_MAX);
     if found_slot != 0 {
         *(&sched.hashes[0] + 0) = *(&sched.hashes[0] + found_slot);
         reset = 1;
@@ -3316,7 +3328,7 @@ i32 derive_resumption_secret(ptls_key_schedule_t* sched, u8* secret, ptls_iovec_
     return ret;
 }
 
-i32 decode_new_session_ticket(ptls_t* tls, u32* lifetime, u32* age_add, ptls_iovec_t* nonce, ptls_iovec_t* ticket, u32* max_early_data_size, u8* src, u8* end) {
+i32 decode_new_session_ticket(ptls_t* tls, u32* lifetime, u32* age_add, ptls_iovec_t* nonce, ptls_iovec_t* ticket, i32* early_data, u32* max_early_data_size, u8* src, u8* end) {
     u16 exttype;
     i32 ret;
     ret = ptls_decode32(lifetime, &src, end);
@@ -3421,6 +3433,7 @@ i32 decode_new_session_ticket(ptls_t* tls, u32* lifetime, u32* age_add, ptls_iov
         }
         if !(0 != 0) { break; }
     }
+    *early_data = 0;
     *max_early_data_size = 0;
     while true {
         while true {
@@ -3506,6 +3519,7 @@ i32 decode_new_session_ticket(ptls_t* tls, u32* lifetime, u32* age_add, ptls_iov
                                                 }
                                                 switch exttype {
                                                     case 42: {
+                                                        *early_data = 1;
                                                         ret = ptls_decode32(max_early_data_size, &src, end);
                                                         if ret != 0 {
                                                             return ret;
@@ -3561,6 +3575,7 @@ i32 decode_stored_session_ticket(ptls_t* tls, ptls_key_exchange_algorithm_t** ke
     u64 obtained_at;
     u64 now;
     noinit ptls_iovec_t nonce;
+    i32 early_data;
     i32 ret;
     ret = ptls_decode64(&obtained_at, &src, end);
     if ret != 0 {
@@ -3606,7 +3621,7 @@ i32 decode_stored_session_ticket(ptls_t* tls, ptls_key_exchange_algorithm_t** ke
             u8* end = src + _block_size;
             while true {
                 {
-                    ret = decode_new_session_ticket(tls, &lifetime, &age_add, &nonce, ticket, max_early_data_size, src, end);
+                    ret = decode_new_session_ticket(tls, &lifetime, &age_add, &nonce, ticket, &early_data, max_early_data_size, src, end);
                     if ret != 0 {
                         return ret;
                     }
@@ -7437,6 +7452,10 @@ i32 decode_server_hello(ptls_t* tls, st_ptls_server_hello_t* sh, u8* src, u8* en
     }
     sh.is_retry_request = memcmp(src, hello_retry_random, cast(u64, 32)) == 0;
     src += 32;
+    if sh.is_retry_request && tls.state == PTLS_STATE_CLIENT_EXPECT_SECOND_SERVER_HELLO {
+        ret = 10;
+        return ret;
+    }
     while true {
         u64 _capacity = 1;
         u64 _block_size;
@@ -7492,10 +7511,18 @@ i32 decode_server_hello(ptls_t* tls, st_ptls_server_hello_t* sh, u8* src, u8* en
         if ret != 0 {
             return ret;
         }
-        tls.cipher_suite = ptls_find_cipher_suite(tls.ctx.cipher_suites, csid);
-        if tls.cipher_suite == null {
-            ret = 47;
-            return ret;
+        if tls.state == PTLS_STATE_CLIENT_EXPECT_SERVER_HELLO {
+            tls.cipher_suite = ptls_find_cipher_suite(tls.ctx.cipher_suites, csid);
+            if tls.cipher_suite == null {
+                ret = 47;
+                return ret;
+            }
+        } else {
+            assert(tls.state == PTLS_STATE_CLIENT_EXPECT_SECOND_SERVER_HELLO);
+            if tls.cipher_suite.id != csid {
+                ret = 47;
+                return ret;
+            }
         }
     }
     {
@@ -7797,6 +7824,10 @@ i32 handle_hello_retry_request(ptls_t* tls, ptls_message_emitter_t* emitter, st_
             }
         }
         if *cand == null {
+            ret = 47;
+            return ret;
+        }
+        if tls.key_share != null && sh.retry_request.selected_group == tls.key_share.id {
             ret = 47;
             return ret;
         }
@@ -9669,13 +9700,14 @@ i32 client_handle_new_session_ticket(ptls_t* tls, ptls_iovec_t message) {
     u8* src = message.base + 4;
     u8* end = message.base + message.len;
     noinit ptls_iovec_t ticket_nonce;
+    u32 ticket_lifetime;
+    u32 max_early_data_size;
+    i32 early_data;
     i32 ret;
     {
-        u32 ticket_lifetime;
         u32 ticket_age_add;
-        u32 max_early_data_size;
         noinit ptls_iovec_t ticket;
-        ret = decode_new_session_ticket(tls, &ticket_lifetime, &ticket_age_add, &ticket_nonce, &ticket, &max_early_data_size, src, end);
+        ret = decode_new_session_ticket(tls, &ticket_lifetime, &ticket_age_add, &ticket_nonce, &ticket, &early_data, &max_early_data_size, src, end);
         if ret != 0 {
             return ret;
         }
@@ -9826,7 +9858,12 @@ i32 client_handle_new_session_ticket(ptls_t* tls, ptls_iovec_t message) {
         }
         if !(0 != 0) { break; }
     }
-    ret = tls.ctx.save_ticket.cb(tls.ctx.save_ticket, tls, ptls_iovec_init(ticket_buf.base, ticket_buf.off));
+    var properties = ptls_save_ticket_properties_t{
+        .lifetime = ticket_lifetime,
+        .early_data = cast(u32, early_data),
+        .max_early_data_size = max_early_data_size,
+    };
+    ret = tls.ctx.save_ticket.cb(tls.ctx.save_ticket, tls, ptls_iovec_init(ticket_buf.base, ticket_buf.off), &properties);
     if ret != 0 {
         ptls_buffer_dispose(&ticket_buf);
         return ret;
@@ -9910,6 +9947,10 @@ i32 client_hello_decode_server_name(ptls_iovec_t* name, u8** src, u8* end) {
                                     {
                                         switch type {
                                             case 0: {
+                                                if cast(i64, end - *src) == 0 {
+                                                    ret = 50;
+                                                    return ret;
+                                                }
                                                 if memchr(*src, 0, cast(i64, end - *src)) != null {
                                                     ret = 47;
                                                     return ret;
@@ -12404,6 +12445,10 @@ i32 server_handle_hello(ptls_t* tls, ptls_message_emitter_t* emitter, ptls_iovec
             }
         }
         if tls.ech.aead != null {
+            if ch.ech.payload.len <= tls.ech.aead.algo.tag_size {
+                ret = 50;
+                return ret;
+            }
             ech.encoded_ch_inner = alloc(cast(i64, ch.ech.payload.len - tls.ech.aead.algo.tag_size));
             ech.ch_outer_aad = alloc(cast(i64, message.len - 4));
             if ech.encoded_ch_inner == null || ech.ch_outer_aad == null {
@@ -15064,9 +15109,12 @@ i32 update_traffic_key(ptls_t* tls, i32 is_enc) {
 }
 
 i32 handle_key_update(ptls_t* tls, ptls_message_emitter_t* emitter, ptls_iovec_t message) {
+    i32 ret;
+    if tls.ctx.update_traffic_key != null {
+        return 10;
+    }
     u8* src = message.base + 4;
     u8* end = message.base + message.len;
-    i32 ret;
     if cast(i64, end - src) != 1 || *src > 1 {
         return 50;
     }
@@ -15075,9 +15123,6 @@ i32 handle_key_update(ptls_t* tls, ptls_message_emitter_t* emitter, ptls_iovec_t
         return ret;
     }
     if *src != 0 {
-        if tls.ctx.update_traffic_key != null {
-            return 10;
-        }
         tls.needs_key_update = 1;
     }
     return 0;
@@ -16726,6 +16771,9 @@ i32 handle_input(ptls_t* tls, ptls_message_emitter_t* emitter, ptls_buffer_t* de
             return 10;
         }
         rec.type = rec.fragment[--rec.length];
+        if rec.length == 0 && (rec.type == 21 || rec.type == 22) {
+            return 10;
+        }
     } else if rec.type == 23 && tls.is_server && tls.server.early_data_skipped_bytes != UINT32_MAX {
         {
             tls.server.early_data_skipped_bytes += cast(u32, rec.length);
@@ -17015,7 +17063,9 @@ i32 update_send_key(ptls_t* tls, ptls_buffer_t* _sendbuf, i32 request_update) {
 }
 
 i32 ptls_send(ptls_t* tls, ptls_buffer_t* sendbuf, void* input, u64 inlen) {
-    assert(tls.traffic_protection.enc.aead != null);
+    if (tls.traffic_protection.enc.aead != null && (tls.traffic_protection.enc.tls12 || tls.traffic_protection.enc.epoch == 1 || tls.traffic_protection.enc.epoch == 3)) == 0 {
+        return 0x200 + 2;
+    }
     if tls.traffic_protection.enc.seq >= 16777216 && tls.key_schedule != null {
         tls.needs_key_update = 1;
     }
@@ -17963,10 +18013,18 @@ st_ptls_log_t ptls_log = st_ptls_log_t{
 };
 ptls_log_conn_state_t* ptls_log_conn_state_override = null;
 
-void ptls_log_init_conn_state(ptls_log_conn_state_t* state, fn(void*, u64): void random_bytes) {
+void ptls_log_init_conn_state(ptls_log_conn_state_t* state, fn(void*, u64): void random_bytes, u64 conn_id, void* _peeraddr) {
     u32 r;
     random_bytes(&r, sizeof(r));
-    *state = ptls_log_conn_state_t{.random_ = cast(f32, r) / cast(f32, cast(u64, UINT32_MAX) + 1)};
+    *state = ptls_log_conn_state_t{
+        .random_ = cast(f32, r) / cast(f32, cast(u64, UINT32_MAX) + 1),
+        .conn_id = conn_id,
+    };
+    when defined(AF_INET) {
+        // TODO transminc: untranslatable platform branch
+    } else {
+        ignore _peeraddr;
+    }
 }
 
 u64 ptls_log_num_lost() {
@@ -18667,6 +18725,182 @@ u32 sub_word(u32 w, u8* sbox) {
     return cast(u32, a) << 24 | cast(u32, b) << 16 | cast(u32, c) << 8 | d;
 }
 
+/* SubBytes as a boolean circuit over bit-planes: Boyar and Peralta,
+ * "A new combinational logic minimization technique with applications
+ * to cryptology", eprint 2009/191, Appendix C. No secret indexes memory,
+ * as with the masked table scan this replaces, at about a tenth of the
+ * work. Plane b holds bit b of every byte, lane 4*w + k byte k of word w.
+ * Decryption keeps the table; TLS 1.3 never decrypts a block. */
+void aes_planes_in(u32* state, u32* q) {
+    for u32 b = 0; b < 8; b++ {
+        u32 p = 0;
+        for u32 w = 0; w < 4; w++ {
+            u32 x = state[w] >> b & 0x01010101;
+            x = (x | x >> 7) & 0x00030003;
+            x = (x | x >> 14) & 0xF;
+            p |= x << 4 * w;
+        }
+        q[b] = p;
+    }
+}
+
+void aes_planes_out(u32* q, u32* state) {
+    for u32 w = 0; w < 4; w++ {
+        u32 word = 0;
+        for u32 b = 0; b < 8; b++ {
+            u32 x = q[b] >> 4 * w & 0xF;
+            x = (x | x << 14) & 0x00030003;
+            x = (x | x << 7) & 0x01010101;
+            word |= x << b;
+        }
+        state[w] = word;
+    }
+}
+
+void aes_sbox_planes(u32* q) {
+    u32 x0 = q[7];
+    u32 x1 = q[6];
+    u32 x2 = q[5];
+    u32 x3 = q[4];
+    u32 x4 = q[3];
+    u32 x5 = q[2];
+    u32 x6 = q[1];
+    u32 x7 = q[0];
+    u32 y14 = x3 ^ x5;
+    u32 y13 = x0 ^ x6;
+    u32 y9 = x0 ^ x3;
+    u32 y8 = x0 ^ x5;
+    u32 t0 = x1 ^ x2;
+    u32 y1 = t0 ^ x7;
+    u32 y4 = y1 ^ x3;
+    u32 y12 = y13 ^ y14;
+    u32 y2 = y1 ^ x0;
+    u32 y5 = y1 ^ x6;
+    u32 y3 = y5 ^ y8;
+    u32 t1 = x4 ^ y12;
+    u32 y15 = t1 ^ x5;
+    u32 y20 = t1 ^ x1;
+    u32 y6 = y15 ^ x7;
+    u32 y10 = y15 ^ t0;
+    u32 y11 = y20 ^ y9;
+    u32 y7 = x7 ^ y11;
+    u32 y17 = y10 ^ y11;
+    u32 y19 = y10 ^ y8;
+    u32 y16 = t0 ^ y11;
+    u32 y21 = y13 ^ y16;
+    u32 y18 = x0 ^ y16;
+    u32 t2 = y12 & y15;
+    u32 t3 = y3 & y6;
+    u32 t4 = t3 ^ t2;
+    u32 t5 = y4 & x7;
+    u32 t6 = t5 ^ t2;
+    u32 t7 = y13 & y16;
+    u32 t8 = y5 & y1;
+    u32 t9 = t8 ^ t7;
+    u32 t10 = y2 & y7;
+    u32 t11 = t10 ^ t7;
+    u32 t12 = y9 & y11;
+    u32 t13 = y14 & y17;
+    u32 t14 = t13 ^ t12;
+    u32 t15 = y8 & y10;
+    u32 t16 = t15 ^ t12;
+    u32 t17 = t4 ^ t14;
+    u32 t18 = t6 ^ t16;
+    u32 t19 = t9 ^ t14;
+    u32 t20 = t11 ^ t16;
+    u32 t21 = t17 ^ y20;
+    u32 t22 = t18 ^ y19;
+    u32 t23 = t19 ^ y21;
+    u32 t24 = t20 ^ y18;
+    u32 t25 = t21 ^ t22;
+    u32 t26 = t21 & t23;
+    u32 t27 = t24 ^ t26;
+    u32 t28 = t25 & t27;
+    u32 t29 = t28 ^ t22;
+    u32 t30 = t23 ^ t24;
+    u32 t31 = t22 ^ t26;
+    u32 t32 = t31 & t30;
+    u32 t33 = t32 ^ t24;
+    u32 t34 = t23 ^ t33;
+    u32 t35 = t27 ^ t33;
+    u32 t36 = t24 & t35;
+    u32 t37 = t36 ^ t34;
+    u32 t38 = t27 ^ t36;
+    u32 t39 = t29 & t38;
+    u32 t40 = t25 ^ t39;
+    u32 t41 = t40 ^ t37;
+    u32 t42 = t29 ^ t33;
+    u32 t43 = t29 ^ t40;
+    u32 t44 = t33 ^ t37;
+    u32 t45 = t42 ^ t41;
+    u32 z0 = t44 & y15;
+    u32 z1 = t37 & y6;
+    u32 z2 = t33 & x7;
+    u32 z3 = t43 & y16;
+    u32 z4 = t40 & y1;
+    u32 z5 = t29 & y7;
+    u32 z6 = t42 & y11;
+    u32 z7 = t45 & y17;
+    u32 z8 = t41 & y10;
+    u32 z9 = t44 & y12;
+    u32 z10 = t37 & y3;
+    u32 z11 = t33 & y4;
+    u32 z12 = t43 & y13;
+    u32 z13 = t40 & y5;
+    u32 z14 = t29 & y2;
+    u32 z15 = t42 & y9;
+    u32 z16 = t45 & y14;
+    u32 z17 = t41 & y8;
+    u32 t46 = z15 ^ z16;
+    u32 t47 = z10 ^ z11;
+    u32 t48 = z5 ^ z13;
+    u32 t49 = z9 ^ z10;
+    u32 t50 = z2 ^ z12;
+    u32 t51 = z2 ^ z5;
+    u32 t52 = z7 ^ z8;
+    u32 t53 = z0 ^ z3;
+    u32 t54 = z6 ^ z7;
+    u32 t55 = z16 ^ z17;
+    u32 t56 = z12 ^ t48;
+    u32 t57 = t50 ^ t53;
+    u32 t58 = z4 ^ t46;
+    u32 t59 = z3 ^ t54;
+    u32 t60 = t46 ^ t57;
+    u32 t61 = z14 ^ t57;
+    u32 t62 = t52 ^ t58;
+    u32 t63 = t49 ^ t58;
+    u32 t64 = z4 ^ t59;
+    u32 t65 = t61 ^ t62;
+    u32 t66 = z1 ^ t63;
+    u32 s0 = t59 ^ t63;
+    u32 s6 = t56 ^ ~t62;
+    u32 s7 = t48 ^ ~t60;
+    u32 t67 = t64 ^ t65;
+    u32 s3 = t53 ^ t66;
+    u32 s4 = t51 ^ t66;
+    u32 s5 = t47 ^ t65;
+    u32 s1 = t64 ^ ~s3;
+    u32 s2 = t55 ^ ~t67;
+    q[7] = s0;
+    q[6] = s1;
+    q[5] = s2;
+    q[4] = s3;
+    q[3] = s4;
+    q[2] = s5;
+    q[1] = s6;
+    q[0] = s7;
+}
+
+/* One word, for the key schedule. */
+u32 sub_word_ct(u32 w) {
+    u32[4] st = {w, 0, 0, 0};
+    noinit u32[8] q;
+    aes_planes_in(st, q);
+    aes_sbox_planes(q);
+    aes_planes_out(q, st);
+    return st[0];
+}
+
 void aes_schedule(cf_aes_context* ctx, u8* key, u64 nkey) {
     u64 i;
     var nb = cast(u64, 16 / 4);
@@ -18685,9 +18919,9 @@ void aes_schedule(cf_aes_context* ctx, u8* key, u64 nkey) {
             i_mod_nk = 0;
         }
         if i_mod_nk == 0 {
-            temp = sub_word(rotl32(temp, 8), S) ^ cast(u32, Rcon[i_div_nk]) << 24;
+            temp = sub_word_ct(rotl32(temp, 8)) ^ cast(u32, Rcon[i_div_nk]) << 24;
         } else if nk > 6 && i_mod_nk == 4 {
-            temp = sub_word(temp, S);
+            temp = sub_word_ct(temp);
         }
         w[i] = w[i - nk] ^ temp;
         i_mod_nk++;
@@ -18725,10 +18959,10 @@ void add_round_key(u32* state, u32* rk) {
 }
 
 void sub_block(u32* state) {
-    state[0] = sub_word(state[0], S);
-    state[1] = sub_word(state[1], S);
-    state[2] = sub_word(state[2], S);
-    state[3] = sub_word(state[3], S);
+    noinit u32[8] q;
+    aes_planes_in(state, q);
+    aes_sbox_planes(q);
+    aes_planes_out(q, state);
 }
 
 void shift_rows(u32* state) {
