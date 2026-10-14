@@ -43,136 +43,6 @@ u32 parse_ipv4(u8* s) {
 }
 }
 
-// --- DNS (IPv4 only) ---
-
-const i32 NET_AI_PASSIVE = 1;
-
-when os(windows) {
-    extern "ws2_32.dll" {
-        i32 getaddrinfo(u8* node, u8* service, void* hints, void** res);
-        void freeaddrinfo(void* res);
-    }
-    struct _NetAddrInfoW {
-        i32 ai_flags;
-        i32 ai_family;
-        i32 ai_socktype;
-        i32 ai_protocol;
-        u64 ai_addrlen;
-        u8* ai_canonname;
-        void* ai_addr;
-        void* ai_next;
-    }
-}
-when os(linux) {
-    extern "libc.so.6" {
-        i32 getaddrinfo(u8* node, u8* service, void* hints, void** res);
-        void freeaddrinfo(void* res);
-    }
-    struct _NetAddrInfoL {
-        i32 ai_flags;
-        i32 ai_family;
-        i32 ai_socktype;
-        i32 ai_protocol;
-        u32 ai_addrlen;
-        u32 _pad;
-        void* ai_addr;
-        u8* ai_canonname;
-        void* ai_next;
-    }
-}
-when os(macos) || os(ios) {
-    extern "libSystem.B.dylib" {
-        i32 getaddrinfo(u8* node, u8* service, void* hints, void** res);
-        void freeaddrinfo(void* res);
-    }
-    // BSD/Darwin struct addrinfo: ai_canonname precedes ai_addr
-    // (the reverse of Linux/glibc).
-    struct _NetAddrInfoM {
-        i32 ai_flags;
-        i32 ai_family;
-        i32 ai_socktype;
-        i32 ai_protocol;
-        u32 ai_addrlen;
-        u32 _pad;
-        u8* ai_canonname;
-        void* ai_addr;
-        void* ai_next;
-    }
-}
-
-// Resolve `host` to an IPv4 address. Accepts literals and hostnames.
-// Returns 0 on failure.
-private {
-u32 pico_resolve_ipv4(u8* host) {
-    when os(windows) {
-        _NetAddrInfoW hints = _NetAddrInfoW{};
-        hints.ai_family = cast(i32, NET_AF_INET);
-        hints.ai_socktype = NET_SOCK_STREAM;
-        void* res = null;
-        if getaddrinfo(host, null, &hints, &res) != 0 { return cast(u32, 0); }
-        u32 ip = 0;
-        _NetAddrInfoW* cur = cast(_NetAddrInfoW*, res);
-        while cur != null {
-            if cur.ai_family == cast(i32, NET_AF_INET) && cur.ai_addr != null {
-                u8* ab = cast(u8*, cur.ai_addr);
-                ip = cast(u32, ab[4])
-                   | (cast(u32, ab[5]) << 8)
-                   | (cast(u32, ab[6]) << 16)
-                   | (cast(u32, ab[7]) << 24);
-                break;
-            }
-            cur = cast(_NetAddrInfoW*, cur.ai_next);
-        }
-        freeaddrinfo(res);
-        return ip;
-    }
-    when os(linux) {
-        _NetAddrInfoL hints = _NetAddrInfoL{};
-        hints.ai_family = cast(i32, NET_AF_INET);
-        hints.ai_socktype = NET_SOCK_STREAM;
-        void* res = null;
-        if getaddrinfo(host, null, &hints, &res) != 0 { return cast(u32, 0); }
-        u32 ip = 0;
-        _NetAddrInfoL* cur = cast(_NetAddrInfoL*, res);
-        while cur != null {
-            if cur.ai_family == cast(i32, NET_AF_INET) && cur.ai_addr != null {
-                u8* ab = cast(u8*, cur.ai_addr);
-                ip = cast(u32, ab[4])
-                   | (cast(u32, ab[5]) << 8)
-                   | (cast(u32, ab[6]) << 16)
-                   | (cast(u32, ab[7]) << 24);
-                break;
-            }
-            cur = cast(_NetAddrInfoL*, cur.ai_next);
-        }
-        freeaddrinfo(res);
-        return ip;
-    }
-    when os(macos) || os(ios) {
-        _NetAddrInfoM hints = _NetAddrInfoM{};
-        hints.ai_family = cast(i32, NET_AF_INET);
-        hints.ai_socktype = NET_SOCK_STREAM;
-        void* res = null;
-        if getaddrinfo(host, null, &hints, &res) != 0 { return cast(u32, 0); }
-        u32 ip = 0;
-        _NetAddrInfoM* cur = cast(_NetAddrInfoM*, res);
-        while cur != null {
-            if cur.ai_family == cast(i32, NET_AF_INET) && cur.ai_addr != null {
-                u8* ab = cast(u8*, cur.ai_addr);
-                ip = cast(u32, ab[4])
-                   | (cast(u32, ab[5]) << 8)
-                   | (cast(u32, ab[6]) << 16)
-                   | (cast(u32, ab[7]) << 24);
-                break;
-            }
-            cur = cast(_NetAddrInfoM*, cur.ai_next);
-        }
-        freeaddrinfo(res);
-        return ip;
-    }
-}
-}
-
 // One handshake step. Reads from the socket only when the input
 // buffer is empty. Returns 0 on ok, nonzero on error.
 i32 pico_https_drive_one(ptls_t* tls, Socket conn,
@@ -271,7 +141,7 @@ i32 pico_https_request(u8* method, u8* host, u16 port, u8* sni, u8* path,
                      ptls_verify_certificate_t* verify_or_null) {
     if !net_init() { return PICO_HTTPS_ERR_NET_INIT; }
 
-    u32 ip = pico_resolve_ipv4(host);
+    u32 ip = net_resolve4(host);
     if ip == cast(u32, 0) { return PICO_HTTPS_ERR_BAD_IP; }
 
     ptls_key_exchange_algorithm_t kx_x25519 = ptls_key_exchange_algorithm_t{
@@ -583,7 +453,7 @@ i32 pico_https_conn_open(pico_https_conn_t* conn,
                        ptls_verify_certificate_t* verify_or_null) {
     conn.valid = false;
     if !net_init() { return PICO_HTTPS_ERR_NET_INIT; }
-    u32 ip = pico_resolve_ipv4(host);
+    u32 ip = net_resolve4(host);
     if ip == cast(u32, 0) { return PICO_HTTPS_ERR_BAD_IP; }
 
     conn.kx_x25519 = ptls_key_exchange_algorithm_t{
