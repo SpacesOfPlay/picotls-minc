@@ -3483,7 +3483,7 @@ i32 decode_new_session_ticket(ptls_t* tls, u32* lifetime, u32* age_add, ptls_iov
                                 if ret != 0 {
                                     return ret;
                                 }
-                                if extension_bitmap_testandset(&bitmap, 4, *&exttype) == 0 {
+                                if extension_bitmap_testandset(&bitmap, 4, exttype) == 0 {
                                     ret = 47;
                                     return ret;
                                 }
@@ -7590,7 +7590,7 @@ i32 decode_server_hello(ptls_t* tls, st_ptls_server_hello_t* sh, u8* src, u8* en
                                 if ret != 0 {
                                     return ret;
                                 }
-                                if extension_bitmap_testandset(&bitmap, sh.is_retry_request != 0 ? -1 : 2, *&exttype) == 0 {
+                                if extension_bitmap_testandset(&bitmap, sh.is_retry_request != 0 ? -1 : 2, exttype) == 0 {
                                     ret = 47;
                                     return ret;
                                 }
@@ -8084,7 +8084,7 @@ i32 client_handle_encrypted_extensions(ptls_t* tls, ptls_iovec_t message, ptls_h
                                 if ret != 0 {
                                     return ret;
                                 }
-                                if extension_bitmap_testandset(&bitmap, 8, *&type) == 0 {
+                                if extension_bitmap_testandset(&bitmap, 8, type) == 0 {
                                     ret = 47;
                                     return ret;
                                 }
@@ -8460,7 +8460,7 @@ i32 decode_certificate_request(ptls_t* tls, st_ptls_certificate_request_t* cr, u
                                 if ret != 0 {
                                     return ret;
                                 }
-                                if extension_bitmap_testandset(&bitmap, 13, *&exttype) == 0 {
+                                if extension_bitmap_testandset(&bitmap, 13, exttype) == 0 {
                                     ret = 47;
                                     return ret;
                                 }
@@ -9229,7 +9229,7 @@ i32 handle_certificate(ptls_t* tls, u8* src, u8* end, i32* got_certs) {
                                                     if ret != 0 {
                                                         return ret;
                                                     }
-                                                    if extension_bitmap_testandset(&bitmap, 11, *&type) == 0 {
+                                                    if extension_bitmap_testandset(&bitmap, 11, type) == 0 {
                                                         ret = 47;
                                                         return ret;
                                                     }
@@ -10286,7 +10286,7 @@ i32 decode_client_hello(ptls_context_t* ctx, st_ptls_client_hello_t* ch, u8* src
                                 if ret != 0 {
                                     return ret;
                                 }
-                                if extension_bitmap_testandset(&bitmap, 1, *&exttype) == 0 {
+                                if extension_bitmap_testandset(&bitmap, 1, exttype) == 0 {
                                     ret = 47;
                                     return ret;
                                 }
@@ -23509,9 +23509,9 @@ void mc_ge_scalarmult_base(ge* p, u8* scalar) {
         mc_lookup_add(p, &tmp_c, tmp_a, tmp_b, mc_b_comb_high, s_scalar, i + 128);
     }
     crypto_wipe(tmp_a, cast(u64, sizeof(tmp_a)));
-    crypto_wipe(&tmp_d, cast(u64, sizeof(*&tmp_d)));
+    crypto_wipe(&tmp_d, cast(u64, sizeof(tmp_d)));
     crypto_wipe(tmp_b, cast(u64, sizeof(tmp_b)));
-    crypto_wipe(&tmp_c, cast(u64, sizeof(*&tmp_c)));
+    crypto_wipe(&tmp_c, cast(u64, sizeof(tmp_c)));
     crypto_wipe(s_scalar, cast(u64, sizeof(s_scalar)));
 }
 }
@@ -23520,7 +23520,7 @@ void crypto_eddsa_scalarbase(u8* point, u8* scalar) {
     noinit ge P;
     mc_ge_scalarmult_base(&P, scalar);
     mc_ge_tobytes(point, &P);
-    crypto_wipe(&P, cast(u64, sizeof(*&P)));
+    crypto_wipe(&P, cast(u64, sizeof(P)));
 }
 
 void crypto_eddsa_key_pair(u8* secret_key, u8* public_key, u8* seed) {
@@ -23822,9 +23822,9 @@ void crypto_x25519_dirty_fast(u8* public_key, u8* secret_key) {
     mc_fe_mul(t1, t1, t2);
     mc_fe_tobytes(public_key, t1);
     crypto_wipe(t1, cast(u64, sizeof(t1)));
-    crypto_wipe(&pk, cast(u64, sizeof(*&pk)));
+    crypto_wipe(&pk, cast(u64, sizeof(pk)));
     crypto_wipe(t2, cast(u64, sizeof(t2)));
-    crypto_wipe(&low_order_point, cast(u64, sizeof(*&low_order_point)));
+    crypto_wipe(&low_order_point, cast(u64, sizeof(low_order_point)));
     crypto_wipe(scalar, cast(u64, sizeof(scalar)));
 }
 ///////////////////
@@ -25214,16 +25214,32 @@ i32 uECC_sign_deterministic(u8* private_key, u8* message_hash, u32 hash_size, uE
         noinit uECC_word_t[4] T;
         var T_ptr = cast(u8*, &T[0]);
         wordcount_t T_bytes = 0;
+        i32 __jump_filled = 0;
         while true {
-            update_V(hash_context, K, V);
-            for i = 0; i < hash_context.result_size; ++i {
-                T_ptr[T_bytes++] = V[i];
-                if T_bytes >= num_n_words * 8 {
-                    // TODO transminc: goto filled
+            while true {
+                update_V(hash_context, K, V);
+                for i = 0; i < hash_context.result_size; ++i {
+                    T_ptr[T_bytes++] = V[i];
+                    if T_bytes >= num_n_words * 8 {
+                        __jump_filled = 1;
+                        break;
+                    }
+                }
+                if __jump_filled != 0 {
+                    break;
                 }
             }
+            if __jump_filled != 0 {
+                break;
+            }
+            break;
         }
-        // TODO transminc: label filled:
+        if __jump_filled == 2 {
+            break;
+        }
+        if __jump_filled == 3 {
+            continue;
+        }
         if cast(bitcount_t, num_n_words) * 8 * 8 > num_n_bits {
             var mask = cast(uECC_word_t, -1);
             T[num_n_words - 1] &= mask >> cast(u64, cast(bitcount_t, num_n_words * 8 * 8 - num_n_bits));
